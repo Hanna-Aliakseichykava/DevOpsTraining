@@ -1,0 +1,75 @@
+﻿VM1
+
+
+vi /etc/sysctl.conf
+-- add row
+net.ipv4.ip_forward = 1
+
+
+
+vi /etc/sysconfig/iptables-config
+IPTABLES_SAVE_ON_STOP="yes"
+IPTABLES_SAVE_ON_RESTART="yes"
+
+
+
+--Входящий трафик для петлевого интерфейса
+-- работаем с таблицей filter (default)
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+-- разрешим выход в интернет с сервера
+sudo iptables -A OUTPUT -o enp0s3 -j ACCEPT
+
+-- разрешим трафик по SSH (Putty)
+sudo iptables -A INPUT -p tcp -m conntrack --ctstate NEW -m tcp --dport 22 -j ACCEPT
+
+
+iptables -P INPUT ACCEPT
+iptables -F INPUT 
+iptables -P OUTPUT ACCEPT
+iptables -F OUTPUT 
+iptables -P FORWARD DROP
+iptables -F FORWARD
+iptables -t nat -F
+iptables -A FORWARD -i enp0s3 -o enp0s8 -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A FORWARD -i enp0s8 -o enp0s3 -j ACCEPT
+iptables -t nat -A POSTROUTING -s 192.168.56.0/24 -o enp0s8 -j MASQUERADE
+
+
+
+VM2
+
+vi /etc/sysctl.conf
+-- add row
+net.ipv4.ip_forward = 1
+
+vi /etc/sysconfig/iptables-config
+IPTABLES_SAVE_ON_STOP="yes"
+IPTABLES_SAVE_ON_RESTART="yes"
+
+
+-- разрешим пинговать и пинговаться
+
+iptables -A INPUT -p icmp -j ACCEPT
+iptables -A OUTPUT -p icmp -j ACCEPT
+
+
+
+VM3
+
+vi /etc/sysctl.conf
+-- add row
+net.ipv4.ip_forward = 1
+
+vi /etc/sysconfig/iptables-config
+IPTABLES_SAVE_ON_STOP="yes"
+IPTABLES_SAVE_ON_RESTART="yes"
+
+
+-- разрешим пинговать и пинговаться
+
+iptables -A INPUT -p icmp -j ACCEPT
+iptables -A OUTPUT -p icmp -j ACCEPT
+
+
