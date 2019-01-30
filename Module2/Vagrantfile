@@ -88,7 +88,7 @@ Vagrant.configure("2") do |config|
 
     # Ping between machines should work via DNS names (update hosts file is ok)
     server1.vm.provision "shell", inline: <<-SHELL
-    grep -q "server2" /etc/hosts; [ $? -eq 0 ] && echo "hosts are already updated" || echo "updating hosts" && echo '192.168.0.11 server2' >> /etc/hosts
+      grep -q "server2" /etc/hosts; [ $? -eq 0 ] && echo "hosts are already updated" || echo "updating hosts" && echo '192.168.0.11 server2' >> /etc/hosts
     SHELL
 
   end
