@@ -123,7 +123,6 @@ Vagrant.configure("2") do |config|
 
       yum install httpd -y
       systemctl enable httpd
-      systemctl start httpd
 
       yum install links -y
 
@@ -196,7 +195,7 @@ Vagrant.configure("2") do |config|
 
     # Restart apache
     myloadbalancer.vm.provision "shell", inline: <<-SHELL
-      systemctl restart httpd
+      systemctl start httpd
     SHELL
 
   end
