@@ -193,7 +193,7 @@ Vagrant.configure("2") do |config|
 
     SHELL
 
-    # Restart apache
+    # Start apache load balancer
     myloadbalancer.vm.provision "shell", inline: <<-SHELL
       systemctl start httpd
     SHELL
