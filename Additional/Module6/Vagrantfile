@@ -112,7 +112,10 @@ Vagrant.configure("2") do |config|
 
   # Apache HTTPD:
   # http://192.168.0.10:80/server-status
+  # http://192.168.0.10:80/jkmanager/
+  # 
   # http://192.168.0.10:80/MyApp/
+  # http://192.168.0.10:80/app/
 
   config.vm.define "myloadbalancer" do |myloadbalancer|
 
@@ -192,6 +195,7 @@ Vagrant.configure("2") do |config|
 
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /jkmanager* status' >> $HTTPD_CONF_FILE_PATH
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /MyApp* lb' >> $HTTPD_CONF_FILE_PATH
+	  $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /app* lb' >> $HTTPD_CONF_FILE_PATH
 
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'ExtendedStatus on' >> $HTTPD_CONF_FILE_PATH
       $HTTPD_CONF_IS_UP_TO_DATE || echo '<Location /server-status>' >> $HTTPD_CONF_FILE_PATH
@@ -253,6 +257,8 @@ Vagrant.configure("2") do |config|
     myloadbalancer.vm.provision "shell", inline: <<-SHELL
 
       echo "Debug: Install Jenkins"
+ 
+      yum install git -y
 
       curl --silent --location http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
       sudo rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key

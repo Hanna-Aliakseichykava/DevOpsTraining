@@ -1,0 +1,48 @@
+pipeline {
+    agent {
+        label ""
+    }
+    stages {
+
+        stage('Clone sources') {
+            steps {
+                echo '..........................Clone or pull the repo..........................'
+                git url: 'https://github.com/Hanna-Aliakseichykava/DevOpsTraining.git', branch: 'Module6'
+            }
+        }
+
+        stage('Build war') {
+            steps {
+                echo '..........................Building war..........................'
+                dir ('Module6/gradleSample') {
+                    sh "chmod +x gradlew"
+                    sh './gradlew incrementMinorVersion'
+                    sh './gradlew build'
+                }
+            }
+        }
+
+        stage('Upload war to Nexus') {
+            steps {
+                echo '..........................Uploading war..........................'
+
+                 dir ('DevOpsTraining/Module6/gradleSample') {
+
+                    script {
+                        
+                        Properties props = new Properties()
+                        props.load(new File('gradle.properties').newDataInputStream())
+                        String version = props.getProperty('version')
+                        String nexusUploadUrl = "http://localhost:8081/nexus/content/repositories/snapshots/task6/" + version + "/app.war"
+                        echo 'Debug: Nexus url: $nexusUrl'
+
+                        def response = sh(script: 'curl –XPUT –u admin:admin123 –T /build/lib/app.war $nexusUrl', returnStdout: true)
+                        echo '=========================Response===================' + response
+                    }
+
+                }
+
+            }
+        }
+    }
+}
