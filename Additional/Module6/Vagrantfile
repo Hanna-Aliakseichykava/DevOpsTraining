@@ -177,6 +177,20 @@ Vagrant.configure("2") do |config|
       SHELL
     end
 
+    # Ping tomcat machines should work via DNS names
+    TOMCAT_NODES.each do|name,ip|
+
+      myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "#{name}" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file for [#{ip} #{name}] is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '#{ip} #{name}' >> $HOSTS_FILE
+      SHELL
+    end
+
     # Edit /etc/httpd/conf/httpd.conf, 
     # Add to the end of the file
     myloadbalancer.vm.provision "shell", inline: <<-SHELL
@@ -195,7 +209,7 @@ Vagrant.configure("2") do |config|
 
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /jkmanager* status' >> $HTTPD_CONF_FILE_PATH
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /MyApp* lb' >> $HTTPD_CONF_FILE_PATH
-	  $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /app* lb' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /app* lb' >> $HTTPD_CONF_FILE_PATH
 
       $HTTPD_CONF_IS_UP_TO_DATE || echo 'ExtendedStatus on' >> $HTTPD_CONF_FILE_PATH
       $HTTPD_CONF_IS_UP_TO_DATE || echo '<Location /server-status>' >> $HTTPD_CONF_FILE_PATH
@@ -205,6 +219,7 @@ Vagrant.configure("2") do |config|
       $HTTPD_CONF_IS_UP_TO_DATE || echo '</Location>' >> $HTTPD_CONF_FILE_PATH
 
     SHELL
+
 
     # Start apache load balancer
     myloadbalancer.vm.provision "shell", inline: <<-SHELL

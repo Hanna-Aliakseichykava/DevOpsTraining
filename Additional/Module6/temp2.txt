@@ -1,0 +1,55 @@
+pipeline {
+    agent {
+        label ""
+    }
+    stages {
+
+        stage('Clone sources') {
+            steps {
+                echo '..........................Clone or pull the repo..........................'
+                git url: 'https://github.com/Hanna-Aliakseichykava/DevOpsTraining.git', branch: 'Module6'
+            }
+        }
+
+        stage('Build war') {
+            steps {
+                echo '..........................Building war..........................'
+                dir ('Module6/gradleSample') {
+                    sh "ls"
+                    sh "chmod +x ./gradlew"
+                    sh './gradlew incrementMinorVersion'
+                    sh './gradlew build'
+                }
+            }
+        }
+
+        stage('Upload war to Nexus') {
+            steps {
+                echo '..........................Uploading war..........................'
+
+                script {
+                        
+                    def basePath = '/var/lib/jenkins/workspace/Job3/Module6/gradleSample'
+                    def artifactPath = "${basePath}/build/libs/app.war"
+
+                    Properties props = new Properties()
+                    props.load(new File("${basePath}/gradle.properties").newDataInputStream())
+                    String version = props.getProperty('version')
+
+                    String nexusUploadUrl = "http://localhost:8081/nexus/content/repositories/snapshots/module6/${version}/app.war"
+                    println "Debug: Nexus url: ${nexusUploadUrl}"
+
+                    def response = sh(script: "curl --upload-file ${artifactPath} -u admin:admin123 -v ${nexusUploadUrl}", returnStdout: true)
+                    println "=========================Response===================\n${response}"
+                }
+
+            }
+        }
+
+        stage('Deploy app on tomcat1') {
+            steps {
+                echo '..........................Deploy app on tomcat1..........................'
+            }
+        }
+    }
+}
