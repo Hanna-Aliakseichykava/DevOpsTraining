@@ -226,25 +226,25 @@ Vagrant.configure("2") do |config|
       yum install wget -y
 
       wget http://download.sonatype.com/nexus/oss/nexus-2.11.2-06-bundle.tar.gz
-      sudo cp nexus-2.11.2-06-bundle.tar.gz /usr/local
+      cp nexus-2.11.2-06-bundle.tar.gz /usr/local
       cd /usr/local
-      sudo tar xvzf nexus-2.11.2-06-bundle.tar.gz
+      tar xvzf nexus-2.11.2-06-bundle.tar.gz
 
-      sudo -s
       export NEXUS_HOME=/usr/local/nexus-2.11.2-06
 
-      sudo cp $NEXUS_HOME/bin/nexus /etc/init.d/nexus
-      sudo chmod 755 /etc/init.d/nexus
-      sudo sed -i 's@.*NEXUS_HOME=.*$@NEXUS_HOME="/usr/local/nexus-2.11.2-06"@g' /etc/init.d/nexus
-      sudo sed -i 's@.*RUN_AS_USER=.*$@RUN_AS_USER=root@g' /etc/init.d/nexus
+      cp $NEXUS_HOME/bin/nexus /etc/init.d/nexus
+      chmod 755 /etc/init.d/nexus
+      sed -i 's@.*NEXUS_HOME=.*$@NEXUS_HOME="/usr/local/nexus-2.11.2-06"@g' /etc/init.d/nexus
+      sed -i 's@.*RUN_AS_USER=.*$@RUN_AS_USER=root@g' /etc/init.d/nexus
 
       cd /etc/init.d
-      sudo chkconfig –add nexus
-      sudo chkconfig –levels 345 nexus on
-      sudo service nexus start
+      chkconfig --add nexus
+      chkconfig --levels 345 nexus on
+      service nexus start
+      tail -f /usr/local/nexus/logs/wrapper.log
 
-      sudo firewall-cmd --zone=public --add-port=8081/tcp --permanent
-      sudo firewall-cmd --reload
+      firewall-cmd --zone=public --add-port=8081/tcp --permanent
+      firewall-cmd --reload
 
     SHELL
 
@@ -261,14 +261,14 @@ Vagrant.configure("2") do |config|
       yum install git -y
 
       curl --silent --location http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
-      sudo rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
-      sudo yum install jenkins -y
-      sudo systemctl start jenkins
-      sudo systemctl enable jenkins
+      rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+      yum install jenkins -y
+      systemctl start jenkins
+      systemctl enable jenkins
 
-      sudo firewall-cmd --permanent --zone=public --add-port=8080/tcp
-      sudo firewall-cmd --reload
-      sudo systemctl stop firewalld
+      firewall-cmd --permanent --zone=public --add-port=8080/tcp
+      firewall-cmd --reload
+      systemctl stop firewalld
 
     SHELL
 
