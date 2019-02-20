@@ -1,7 +1,15 @@
 pipeline {
+
     agent {
         label ""
     }
+
+   environment {
+     BASE_LOCAL_NEXUS_URL = "http://localhost:8081/nexus/content/repositories/snapshots"
+     REMOTE_NEXUS_URL = "http://my.nexusrepo:8081/nexus/content/repositories/snapshots"
+     VERSION = '0.0.0'
+   }
+
     stages {
 
         stage('Clone sources') {
@@ -29,14 +37,16 @@ pipeline {
 
                 script {
                         
-                    def basePath = '/var/lib/jenkins/workspace/Job3/Module6/gradleSample'
+                    def basePath = "${env.WORKSPACE}/Module6/gradleSample"
                     def artifactPath = "${basePath}/build/libs/app.war"
+                    println "Debug: Path app path: ${basePath}"
 
                     Properties props = new Properties()
                     props.load(new File("${basePath}/gradle.properties").newDataInputStream())
                     String version = props.getProperty('version')
+                    VERSION = version
 
-                    String nexusUploadUrl = "http://localhost:8081/nexus/content/repositories/snapshots/module6/${version}/app.war"
+                    String nexusUploadUrl = "${BASE_LOCAL_NEXUS_URL}/module6/${version}/app.war"
                     println "Debug: Nexus url: ${nexusUploadUrl}"
 
                     def response = sh(script: "curl --upload-file ${artifactPath} -u admin:admin123 -v ${nexusUploadUrl}", returnStdout: true)
@@ -48,8 +58,21 @@ pipeline {
 
         stage('Deploy app on tomcat1') {
             steps {
-                echo '..........................Deploy app on tomcat1..........................'
+                script {
+                    tomcat1 = [:]
+                    tomcat1.name = 'tomcat1'
+                    tomcat1.host = 'tomcat1'
+                    tomcat1.user = 'vagrant'
+                    tomcat1.password = 'vagrant'
+                    tomcat1.allowAnyHosts = true
+                    
+                    echo '..........................Deploy app on tomcat1..........................'
+                    sshCommand remote: tomcat1, command: "sudo wget ${REMOTE_NEXUS_URL}/module6/${VERSION}/app.war -P /usr/share/tomcat/webapps"
+                }
+    
+                
             }
         }
+
     }
 }
