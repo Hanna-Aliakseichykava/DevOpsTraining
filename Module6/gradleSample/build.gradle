@@ -1,0 +1,59 @@
+plugins {
+    id 'war'  
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile group: 'log4j', name: 'log4j', version: '1.2.17'
+    compile group: 'commons-io', name: 'commons-io', version: '2.4'
+}
+
+war {
+    archiveName = 'app.war'
+}
+
+
+task incrementMinorVersion << {
+
+    Properties props = new Properties()
+    File propsFile = new File('gradle.properties')
+    props.load(propsFile.newDataInputStream())
+
+    String version = props.getProperty('version')
+    println "Old version: " + version
+
+    version = incrementVersion(version)
+    println "New version: " + version
+
+    props.setProperty('version', version)
+    props.store(propsFile.newWriter(), null)
+}
+
+def incrementVersion(version) {
+
+    String minorVersion = version.substring(version.lastIndexOf('.') + 1) //get last part of the version
+    int minor = ++ minorVersion.toInteger()
+    String newVersion = version.substring(0, version.lastIndexOf('.')) + '.' + minor
+    return newVersion
+}
+
+task updateGreetingWithVersion << {
+
+    File greetingsFile = new File('build/resources/main/greeting.txt')
+    greetingsFile << '\n' << 'Version: ' << getVersion()
+}
+
+def getVersion() {
+
+    Properties props = new Properties()
+    File propsFile = new File('gradle.properties')
+    props.load(propsFile.newDataInputStream())
+
+    return props.getProperty('version')
+}
+
+updateGreetingWithVersion.dependsOn processResources
+war.dependsOn updateGreetingWithVersion

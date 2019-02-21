@@ -1,0 +1,5 @@
+install SSH Pipeline Steps plugin
+
+install Credentials Binding Plugin
+
+uncheck run in groovy sandbox checkbox
