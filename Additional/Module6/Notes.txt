@@ -2,4 +2,16 @@ install SSH Pipeline Steps plugin
 
 install Credentials Binding Plugin
 
+
 uncheck run in groovy sandbox checkbox
+
+
+Navigate to jenkins > Manage jenkins > In-process Script Approval
+
+method java.util.Properties getProperty java.lang.String
+method java.util.Properties load java.io.InputStream
+new java.io.File java.lang.String
+new java.util.Properties
+staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods newDataInputStream java.io.File
+
+
