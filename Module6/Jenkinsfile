@@ -140,6 +140,7 @@ pipeline {
                     } 
 
                     sh "git checkout master"
+                    sh "git pull"
                     sh "git tag -a v${VERSION} -m \"New tag v${VERSION}\""
                     sh 'git merge Module6'
 
