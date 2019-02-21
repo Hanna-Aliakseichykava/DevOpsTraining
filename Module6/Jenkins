@@ -1,0 +1,155 @@
+def deployAppOnTomcat(tomcatInstance) {
+    
+    println "..........................Deploy v${VERSION} on ${tomcatInstance.name}.........................."
+    sshCommand remote: tomcatInstance, command: "sudo wget ${REMOTE_NEXUS_URL}/module6/${VERSION}/app.war -O /usr/share/tomcat/webapps/app.war"
+                    
+    //disable worker
+    sh "curl \"${BASE_LOCAL_LB_URL}/jkmanager?cmd=update&from=list&w=lb&sw=${tomcatInstance.name}&vwa=1\""
+
+    sshCommand remote: tomcatInstance, command: "sudo rm -r -f /usr/share/tomcat/webapps/app/"
+    sshCommand remote: tomcatInstance, command: "sudo systemctl restart tomcat"
+                    
+    //Wait for tomcat is started
+    sshCommand remote: tomcatInstance, command: "until [ \"\$(curl -w '%{response_code}' --no-keepalive -o /dev/null --connect-timeout 1 ${LOCAL_TOMCAT_APP_URL})\" == \"200\" ]; do echo --- sleeping for 1 second; sleep 1; done; echo 'Tomcat is alive!'"
+
+    //Debug
+    sshCommand remote: tomcatInstance, command: "curl ${LOCAL_TOMCAT_APP_URL}"
+                    
+    def versionCheckResult = sshCommand remote: tomcatInstance, command: "curl -s ${LOCAL_TOMCAT_APP_URL} | grep --quiet ${VERSION}; [ \$? -eq 0 ]  && echo true || echo false"
+    println "Version Check: [${versionCheckResult}]"
+                    
+    if(versionCheckResult != "true") {
+        error("Build failed: version check doesn't pass on ${tomcatInstance.name}")
+    }
+                    
+    //enable worker
+    sh "curl \"${BASE_LOCAL_LB_URL}/jkmanager?cmd=update&from=list&w=lb&sw=${tomcatInstance.name}&vwa=0\""
+               
+}
+
+
+pipeline {
+
+    agent {
+        label ""
+    }
+
+   environment {
+     VERSION = '0.0.0'
+
+     BASE_LOCAL_NEXUS_URL = "http://localhost:8081/nexus/content/repositories/snapshots"
+     BASE_LOCAL_LB_URL = "http://localhost:80"
+
+     REMOTE_NEXUS_URL = "http://my.nexusrepo:8081/nexus/content/repositories/snapshots"
+
+     LOCAL_TOMCAT_APP_URL = "http://localhost:8080/app/"
+   }
+
+    stages {
+
+        stage('Clone sources') {
+            steps {
+                echo '..........................Clone or pull the repo..........................'
+                git url: 'https://github.com/Hanna-Aliakseichykava/DevOpsTraining.git', branch: 'Module6'
+            }
+        }
+
+        stage('Build war') {
+            steps {
+                echo '..........................Building war..........................'
+                dir ('Module6/gradleSample') {
+                    sh "ls"
+                    sh "chmod +x ./gradlew"
+                    sh './gradlew incrementMinorVersion'
+                    sh './gradlew build'
+                }
+            }
+        }
+
+        stage('Upload war to Nexus') {
+            steps {
+                echo '..........................Uploading war..........................'
+
+                script {
+                        
+                    def basePath = "${env.WORKSPACE}/Module6/gradleSample"
+                    def artifactPath = "${basePath}/build/libs/app.war"
+                    println "Debug: Path app path: ${basePath}"
+
+                    Properties props = new Properties()
+                    props.load(new File("${basePath}/gradle.properties").newDataInputStream())
+                    VERSION = props.getProperty('version')
+
+                    String nexusUploadUrl = "${BASE_LOCAL_NEXUS_URL}/module6/${VERSION}/app.war"
+                    println "Debug: Nexus url: ${nexusUploadUrl}"
+
+                    withCredentials([usernamePassword(credentialsId: 'nexuscreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          def response = sh(script: "curl --upload-file ${artifactPath} -u $username:$password -v ${nexusUploadUrl}", returnStdout: true)
+                          println "=========================Response===================\n${response}"
+                    }
+                    
+                }
+
+            }
+        }
+
+         stage('Deploy app on tomcat1') {
+            steps {
+                script {
+                    tomcat1 = [:]
+                    tomcat1.name = 'tomcat1'
+                    tomcat1.host = 'tomcat1'
+                    tomcat1.user = 'vagrant'
+                    tomcat1.password = 'vagrant'
+                    tomcat1.allowAnyHosts = true
+                    
+                    deployAppOnTomcat(tomcat1)
+                }  
+                
+            }
+        }
+
+        stage('Deploy app on tomcat2') {
+            steps {
+                script {
+                    tomcat2 = [:]
+                    tomcat2.name = 'tomcat2'
+                    tomcat2.host = 'tomcat2'
+                    tomcat2.user = 'vagrant'
+                    tomcat2.password = 'vagrant'
+                    tomcat2.allowAnyHosts = true
+                    
+                    deployAppOnTomcat(tomcat2)
+                }  
+                
+            }
+        }
+
+        stage('Push to the repo') {
+            steps {
+                script {
+                    
+                    sh "git config --global user.email \"aleks.anna.ur@gmail.com\""
+                    sh "git config --global user.name \"Anna\""
+  
+                    sh "git checkout Module6"
+                    sh "git commit -am \"Version is updated to ${VERSION}\""
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining Module6")
+                    } 
+
+                    sh "git checkout master"
+                    sh "git tag -a v${VERSION} -m \"New tag v${VERSION}\""
+                    sh 'git merge Module6'
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining master")
+                    }  
+                }  
+                
+            }
+        }
+
+    }
+}
