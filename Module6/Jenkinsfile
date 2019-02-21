@@ -146,6 +146,7 @@ pipeline {
 
                     withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
                           sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining master")
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining --tags")
                     }  
                 }  
                 
