@@ -1,0 +1,3 @@
+install SSH Pipeline Steps plugin
+
+uncheck run in groovy sandbox checkbox
