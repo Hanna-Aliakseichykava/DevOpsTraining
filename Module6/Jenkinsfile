@@ -96,14 +96,20 @@ pipeline {
          stage('Deploy app on tomcat1') {
             steps {
                 script {
-                    tomcat1 = [:]
-                    tomcat1.name = 'tomcat1'
-                    tomcat1.host = 'tomcat1'
-                    tomcat1.user = 'vagrant'
-                    tomcat1.password = 'vagrant'
-                    tomcat1.allowAnyHosts = true
                     
-                    deployAppOnTomcat(tomcat1)
+                    withCredentials([usernamePassword(credentialsId: 'tomcatcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+
+                          tomcat1 = [:]
+                          tomcat1.name = 'tomcat1'
+                          tomcat1.host = 'tomcat1'
+                          tomcat1.allowAnyHosts = true
+  
+                          tomcat1.user = "$username"
+                          tomcat1.password = "$password"                          
+                    
+                          deployAppOnTomcat(tomcat1)
+                    } 
+
                 }  
                 
             }
@@ -112,14 +118,20 @@ pipeline {
         stage('Deploy app on tomcat2') {
             steps {
                 script {
-                    tomcat2 = [:]
-                    tomcat2.name = 'tomcat2'
-                    tomcat2.host = 'tomcat2'
-                    tomcat2.user = 'vagrant'
-                    tomcat2.password = 'vagrant'
-                    tomcat2.allowAnyHosts = true
+
+                    withCredentials([usernamePassword(credentialsId: 'tomcatcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+
+                          tomcat2 = [:]
+                          tomcat2.name = 'tomcat2'
+                          tomcat2.host = 'tomcat2'
+                          tomcat2.allowAnyHosts = true
+  
+                          tomcat2.user = "$username"
+                          tomcat2.password = "$password"                          
                     
-                    deployAppOnTomcat(tomcat2)
+                          deployAppOnTomcat(tomcat2)
+                    } 
+                    
                 }  
                 
             }
