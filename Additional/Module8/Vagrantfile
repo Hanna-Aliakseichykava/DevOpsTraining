@@ -64,17 +64,28 @@ Vagrant.configure("2") do |config|
         $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.logstash' >> $HOSTS_FILE
       SHELL
 
+
       # add collectd daemon
       node.vm.provision "shell", inline: <<-SHELL
 
         yum install epel-release -y
         yum install collectd -y
 
+        yum install -y nmap
+        yum install -y tcpdump
+
         export COLLECTD_CONF=/etc/collectd.conf
 
         grep -q "my.influxdb" $COLLECTD_CONF; [ $? -eq 0 ] && export COLLECTD_CONF_IS_UP_TO_DATE=true || export COLLECTD_CONF_IS_UP_TO_DATE=false
         echo 'Debug: collectd.conf file for [#{node}] is up to date: ' $COLLECTD_CONF_IS_UP_TO_DATE
+
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'BaseDir     "/var/lib/collectd"' >> $COLLECTD_CONF
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'PIDFile     "/var/run/collectd.pid"' >> $COLLECTD_CONF
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'PluginDir   "/usr/lib64/collectd"' >> $COLLECTD_CONF
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'TypesDB     "/usr/share/collectd/types.db"' >> $COLLECTD_CONF
   
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'LoadPlugin uptime' >> $COLLECTD_CONF
+        $COLLECTD_CONF_IS_UP_TO_DATE || echo 'LoadPlugin network' >> $COLLECTD_CONF
         $COLLECTD_CONF_IS_UP_TO_DATE || echo '<Plugin network>' >> $COLLECTD_CONF
         $COLLECTD_CONF_IS_UP_TO_DATE || echo 'Server "my.influxdb" "25826"' >> $COLLECTD_CONF
         $COLLECTD_CONF_IS_UP_TO_DATE || echo '</Plugin>' >> $COLLECTD_CONF
@@ -84,7 +95,7 @@ Vagrant.configure("2") do |config|
 
       SHELL
 
- 
+
       # add filebeat daemon
       node.vm.provision "shell", inline: <<-SHELL
 
@@ -106,5 +117,213 @@ Vagrant.configure("2") do |config|
     end
   end
 
+
+  # Apache HTTPD:
+  # http://192.168.0.10:80/server-status
+  # http://192.168.0.10:80/jkmanager/
+  # 
+  # http://192.168.0.10:80/MyApp/
+  # http://192.168.0.10:80/app/
+
+  config.vm.define "myloadbalancer" do |myloadbalancer|
+
+    myloadbalancer.vm.hostname = "myloadbalancer"
+    # Create a private network, which allows host-only access to the machine using a specific IP.
+    myloadbalancer.vm.network "private_network", ip: "192.168.0.10"
+
+    # Install Apache HTTPD and open firewall port
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Loadbalancer"
+
+      yum install httpd -y
+      systemctl enable httpd
+
+      yum install links -y
+
+      systemctl start firewalld
+      firewall-cmd --zone=public --add-port=80/tcp --permanent
+      firewall-cmd --reload
+
+    SHELL
+
+    #
+    # Apache HTTPD + Tomcats
+    #
+
+    joinedTomcatNodeNames = TOMCAT_NODES.keys.join(",")
+
+    # Create /etc/httpd/conf/workers.properties with content
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      cp /vagrant/mod_jk.so /etc/httpd/modules/
+
+      export WORKERS_FILE_PATH=/etc/httpd/conf/workers.properties
+      echo 'Create or rewrite file workers.properties'
+
+      > $WORKERS_FILE_PATH
+
+      echo "Debug: Tomcat Nodes: #{joinedTomcatNodeNames}"
+
+      echo "worker.list=lb, status" >> $WORKERS_FILE_PATH
+      echo "worker.status.type=status" >> $WORKERS_FILE_PATH
+      echo "worker.lb.type=lb" >> $WORKERS_FILE_PATH
+      echo "worker.lb.balance_workers=#{joinedTomcatNodeNames}" >> $WORKERS_FILE_PATH
+    SHELL
+
+    # Configure each worker in workers.properties
+    TOMCAT_NODES.each do|name,ip|
+
+      myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+        export WORKERS_FILE_PATH=/etc/httpd/conf/workers.properties
+
+        echo "Debug: Worker: #{name} #{ip}"
+        echo "worker.#{name}.host=#{ip}" >> $WORKERS_FILE_PATH
+        echo "worker.#{name}.port=8009" >> $WORKERS_FILE_PATH
+        echo "worker.#{name}.type=ajp13" >> $WORKERS_FILE_PATH
+      SHELL
+    end
+
+    # Ping tomcat machines should work via DNS names
+    TOMCAT_NODES.each do|name,ip|
+
+      myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "#{name}" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file for [#{ip} #{name}] is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '#{ip} #{name}' >> $HOSTS_FILE
+      SHELL
+    end
+
+    # Edit /etc/httpd/conf/httpd.conf, 
+    # Add to the end of the file
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      export HTTPD_CONF_FILE_PATH=/etc/httpd/conf/httpd.conf
+
+      grep -q "mod_jk.so" $HTTPD_CONF_FILE_PATH; [ $? -eq 0 ] && export HTTPD_CONF_IS_UP_TO_DATE=true || export HTTPD_CONF_IS_UP_TO_DATE=false
+      echo 'HTTPD conf is up to date: ' $HTTPD_CONF_IS_UP_TO_DATE
+
+  
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'LoadModule jk_module modules/mod_jk.so' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkWorkersFile conf/workers.properties' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkShmFile /tmp/shm' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkLogFile logs/mod_jk.log' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkLogLevel info' >> $HTTPD_CONF_FILE_PATH
+
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /jkmanager* status' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /MyApp* lb' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'JkMount /app* lb' >> $HTTPD_CONF_FILE_PATH
+
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'ExtendedStatus on' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo '<Location /server-status>' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'SetHandler server-status' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'Order deny,allow' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo 'Allow from all' >> $HTTPD_CONF_FILE_PATH
+      $HTTPD_CONF_IS_UP_TO_DATE || echo '</Location>' >> $HTTPD_CONF_FILE_PATH
+
+    SHELL
+
+
+    # Start apache load balancer
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+      systemctl start httpd
+    SHELL
+
+
+    #
+    # Nexus
+    #
+    # curl -I http://localhost:8081/nexus/
+    # http://192.168.0.10:8081/nexus/
+    # The default username is deployment/deployment123 or admin/admin123
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Nexus"
+
+      yum install java-1.8.0-openjdk-devel -y
+      yum install wget -y
+
+      wget http://download.sonatype.com/nexus/oss/nexus-2.11.2-06-bundle.tar.gz
+      cp nexus-2.11.2-06-bundle.tar.gz /usr/local
+      cd /usr/local
+      tar xvzf nexus-2.11.2-06-bundle.tar.gz
+
+      export NEXUS_HOME=/usr/local/nexus-2.11.2-06
+
+      cp $NEXUS_HOME/bin/nexus /etc/init.d/nexus
+      chmod 755 /etc/init.d/nexus
+      sed -i 's@.*NEXUS_HOME=.*$@NEXUS_HOME="/usr/local/nexus-2.11.2-06"@g' /etc/init.d/nexus
+      sed -i 's@.*RUN_AS_USER=.*$@RUN_AS_USER=root@g' /etc/init.d/nexus
+
+      cd /etc/init.d
+      chkconfig --add nexus
+      chkconfig --levels 345 nexus on
+      service nexus start
+      tail -f /usr/local/nexus/logs/wrapper.log
+
+      firewall-cmd --zone=public --add-port=8081/tcp --permanent
+      firewall-cmd --reload
+
+    SHELL
+
+    #
+    # Jenkins
+    #
+    # systemctl status jenkins
+    # http://192.168.0.10:8080
+    # Get password: sudo vi /var/lib/jenkins/secrets/initialAdminPassword
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Jenkins"
+ 
+      yum install git -y
+
+      curl --silent --location http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
+      rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+      yum install jenkins -y
+      systemctl start jenkins
+      systemctl enable jenkins
+
+      firewall-cmd --permanent --zone=public --add-port=8080/tcp
+      firewall-cmd --reload
+      systemctl stop firewalld
+
+    SHELL
+
+
+    #
+    # Docker
+    #
+    # Install Docker and create the foder /etc/DOCKER_DIR for convinient usage with WinSCP
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Docker" 
+      yum install -y yum-utils
+      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      yum -y install docker-ce
+
+      echo "Debug: Install Docker Compose"
+      curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+      ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+      systemctl start docker
+      systemctl enable docker
+
+      mkdir /etc/DOCKER_DIR
+      chmod -R 777 /etc/DOCKER_DIR
+
+      echo "Debug: Increase used memory config for Elastic"
+      sysctl -w vm.max_map_count=262144
+
+    SHELL
+
+
+  end
 
 end

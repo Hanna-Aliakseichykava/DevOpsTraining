@@ -3,69 +3,6 @@ https://github.com/justlaputa/collectd-influxdb-grafana-docker
 
 ------------------------
 
-# Install docker
-
-sudo yum install -y yum-utils
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-sudo yum -y install docker-ce
-
-
-sudo curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
-
-sudo chmod +x /usr/local/bin/docker-compose
-
-sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-
-
-sudo systemctl start docker
-sudo systemctl enable docker
-
----------------
-
-Create folder to use with WinSCP
-
-sudo mkdir /etc/DOCKER_DIR
-sudo chmod -R 777 /etc/DOCKER_DIR
-
-cd /etc/DOCKER_DIR
-
----------------
-
-
-# login
-
-sudo docker logout
-
-sudo docker login --username <> --password <>
-
-sudo docker login --username hannaaliakseichykava --password 14021989
-
-
-#Build image:
-
-#Note: Clean-up if already exists:
-
-sudo docker images
-
-docker container ls
-
-docker stop parking-nn-container
-
-docker rm parking-nn-container
-
-docker rmi monitor-image
-
-#Build image
-
-docker build -t monitor-image .
-
-#See available images
-
-docker images
-
-------------------
-
-
 
 Registry: https://docs.docker.com/registry/
 
@@ -74,19 +11,25 @@ Create service:
 docker service create --name <name> --replicas <number> --publish 8080:8080 <image>
 
 --------------
-Grafana usage:
 
-http://localhost:3000 (admin/admin)
-• Add influxdb datasource
-• Create Dashboard and add some metric
 
---------------
-cd /etc/DOCKER_DIR
-sudo -s
+cd /etc/DOCKER_DIR/monitoring-stack
 
-docker-compose up
+sudo docker-compose up
+sudo docker-compose up --build
 
-docker-compose up --build
+http://www.inanzzz.com/index.php/post/ms6c/collectd-influxdb-and-grafana-integration
+
+https://www.digitalocean.com/community/tutorials/how-to-analyze-system-metrics-with-influxdb-on-centos-7
+
+
+test collectd on Tomcat machine:
+
+sudo service collectd status
+
+sudo nmap -sU -p 25826 my.influxdb
+
+sudo tcpdump -i eth0 -p -n dst port 25826
 
 
 http://192.168.0.10:8083 influxdb admin page
@@ -94,15 +37,14 @@ http://192.168.0.10:8083 influxdb admin page
 add user and password for collectd db:
 admin/admin
 
-http://192.168.0.10:3000 grafana web page (login with admin/admin)
+Grafana usage:
 
-Add InfluxDb as datasource (http://docs.grafana.org/features/datasources/influxdb/):
-
+http://192.168.0.10:3000 (admin/admin)
+• Add influxdb datasource  (http://docs.grafana.org/features/datasources/influxdb/):
+Type: influxdb
 url http://192.168.0.10:8086
 database: collectd admin/admin
-
-
-Create Dashboard and add some metric
+• Create Dashboard and add some metric
 
 
 
@@ -110,27 +52,39 @@ Create Dashboard and add some metric
 
 cd /etc/DOCKER_DIR/log-collection-stack
 
+Note:
+
+Encrease used memory on Host Machine (VM Settings) above 2 GB
+and update config:
+sudo sysctl -w vm.max_map_count=262144
+
+
+sudo docker-compose up
+
 sudo docker-compose --verbose up --build
 
 sudo docker-compose --verbose up
 
-sudo COMPOSE_HTTP_TIMEOUT=200 docker-compose up
+sudo COMPOSE_HTTP_TIMEOUT=300 docker-compose up
+
+sudo COMPOSE_HTTP_TIMEOUT=300 docker-compose up --build
 
 
 Kibana
 http://192.168.0.10:5601
+elastic/changeme
+
+Accessing Kibana through Nginx
+http://192.168.0.10:8089
 
 https://github.com/maxyermayank/docker-compose-elasticsearch-kibana
 
 curl http://localhost:9200/_nodes?pretty=true
 
 http://192.168.0.10:9200
+elastic/changeme
 
 
-Access Kibana
-http://localhost:5601
-Accessing Kibana through Nginx
-http://localhost:8089
 ------------------------
 
 
