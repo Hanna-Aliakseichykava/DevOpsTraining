@@ -309,8 +309,15 @@ Vagrant.configure("2") do |config|
 
       firewall-cmd --permanent --zone=public --add-port=8080/tcp
       firewall-cmd --reload
-      systemctl stop firewalld
 
+      echo "Debug: Jenkins permissions"
+      export PERM_CONF_FILE=/etc/sudoers
+
+      grep -q "jenkins" $PERM_CONF_FILE; [ $? -eq 0 ] && export PERM_CONF_FILE_IS_UP_TO_DATE=true || export PERM_CONF_FILE_IS_UP_TO_DATE=false
+      echo '/etc/sudoers conf is up to date: ' $PERM_CONF_FILE_IS_UP_TO_DATE
+
+  
+      $PERM_CONF_FILE_IS_UP_TO_DATE || echo 'jenkins ALL=(ALL) NOPASSWD: ALL' >> $PERM_CONF_FILE
     SHELL
 
 
@@ -330,6 +337,16 @@ Vagrant.configure("2") do |config|
       chmod +x /usr/local/bin/docker-compose
       ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
+      echo "Debug: Start Docker"
+      systemctl start docker
+      systemctl enable docker
+
+      echo "Debug: Login Docker Hub"
+      sudo docker logout
+      sudo docker login --username hannaautodockerid --password hannaautodockerid
+
+      echo "Debug: Start Docker Registry"
+
       echo "Debug: Configure Docker Registry"
       [ ! -d "/etc/docker" ] && mkdir /etc/docker && echo "Folder /etc/docker has been created" || echo "Folder /etc/docker exists"
       export DOCKER_REGISTRY_CONF=/etc/docker/daemon.json
@@ -337,18 +354,17 @@ Vagrant.configure("2") do |config|
       > $DOCKER_REGISTRY_CONF
       echo '{ "insecure-registries" : ["localhost:5000" ] }' >> $DOCKER_REGISTRY_CONF
 
-      echo "Debug: Start Docker"
-      systemctl start docker
-      systemctl enable docker
+      docker run -d -p 5000:5000 --restart=always --name registry registry:2
   
-      echo "Debug: Login Docker Hub"
-      sudo docker logout
-      sudo docker login --username hannaautodockerid --password hannaautodockerid
+      sudo systemctl daemon-reload
+      sudo systemctl restart docker
 
-      echo "Debug: Start Docker Registry"
-      docker run -d -p 5000:5000 --name registry registry:2
+      firewall-cmd --permanent --zone=public --add-port=5000/tcp
+      firewall-cmd --reload
+      systemctl stop firewalld
 
       echo "Debug: Init Swarm"
+
       docker swarm init --advertise-addr 192.168.0.10
       docker node ls
 
