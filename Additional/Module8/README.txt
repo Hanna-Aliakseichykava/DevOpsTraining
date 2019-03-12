@@ -4,14 +4,6 @@ https://github.com/justlaputa/collectd-influxdb-grafana-docker
 ------------------------
 
 
-Registry: https://docs.docker.com/registry/
-
-Swarm: https://docs.docker.com/engine/swarm/
-Create service:
-docker service create --name <name> --replicas <number> --publish 8080:8080 <image>
-
---------------
-
 
 cd /etc/DOCKER_DIR/monitoring-stack
 
@@ -37,9 +29,11 @@ http://192.168.0.10:8083 influxdb admin page
 add user and password for collectd db:
 admin/admin
 
+
 Grafana usage:
 
 http://192.168.0.10:3000 (admin/admin)
+
 • Add influxdb datasource  (http://docs.grafana.org/features/datasources/influxdb/):
 Type: influxdb
 url http://192.168.0.10:8086
@@ -47,7 +41,7 @@ database: collectd admin/admin
 • Create Dashboard and add some metric
 
 
-
+------------------------
 
 
 cd /etc/DOCKER_DIR/log-collection-stack
@@ -84,8 +78,3 @@ curl http://localhost:9200/_nodes?pretty=true
 http://192.168.0.10:9200
 elastic/changeme
 
-
-------------------------
-
-
-docker push <registry_ip>:5000/<image_name>:<version>
