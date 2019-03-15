@@ -3,6 +3,13 @@ https://github.com/justlaputa/collectd-influxdb-grafana-docker
 
 ------------------------
 
+http://www.inanzzz.com/index.php/post/ms6c/collectd-influxdb-and-grafana-integration
+
+https://www.digitalocean.com/community/tutorials/how-to-analyze-system-metrics-with-influxdb-on-centos-7
+
+https://ops.tips/blog/initialize-grafana-with-preconfigured-dashboards/#configuring-grafana
+https://github.com/cirocosta/sample-grafana/tree/master/grafana
+
 
 
 cd /etc/DOCKER_DIR/monitoring-stack
@@ -10,9 +17,6 @@ cd /etc/DOCKER_DIR/monitoring-stack
 sudo docker-compose up
 sudo docker-compose up --build
 
-http://www.inanzzz.com/index.php/post/ms6c/collectd-influxdb-and-grafana-integration
-
-https://www.digitalocean.com/community/tutorials/how-to-analyze-system-metrics-with-influxdb-on-centos-7
 
 
 test collectd on Tomcat machine:
@@ -34,11 +38,42 @@ Grafana usage:
 
 http://192.168.0.10:3000 (admin/admin)
 
+
 • Add influxdb datasource  (http://docs.grafana.org/features/datasources/influxdb/):
 Type: influxdb
 url http://192.168.0.10:8086
 database: collectd admin/admin
 • Create Dashboard and add some metric
+
+
+vi /etc/grafana/config.ini
+cd /etc/grafana/provisioning
+cd /dashboards /var/lib/grafana/dashboards
+
+
+http://192.168.0.10:3000/api/datasources
+
+
+[
+{
+"id": 1,
+"orgId": 1,
+"name": "MyInfluxDB",
+"type": "influxdb",
+"typeLogoUrl": "public/app/plugins/datasource/influxdb/img/influxdb_logo.svg",
+"access": "proxy",
+"url": "http://192.168.0.10:8086",
+"password": "admin",
+"user": "admin",
+"database": "collectd",
+"basicAuth": false,
+"isDefault": true,
+"jsonData": {
+"keepCookies": []
+},
+"readOnly": false
+}
+]
 
 
 ------------------------
@@ -64,16 +99,22 @@ sudo COMPOSE_HTTP_TIMEOUT=300 docker-compose up
 sudo COMPOSE_HTTP_TIMEOUT=300 docker-compose up --build
 
 
+
 Kibana
 http://192.168.0.10:5601
 elastic/changeme
 
-Accessing Kibana through Nginx
-http://192.168.0.10:8089
+
+Elastic:
+
+curl -s -f  http://localhost:9200/_cat/health
+curl http://localhost:9200/_nodes?pretty=true
+
+http://192.168.0.10:9200/_cat/health
+
 
 https://github.com/maxyermayank/docker-compose-elasticsearch-kibana
 
-curl http://localhost:9200/_nodes?pretty=true
 
 http://192.168.0.10:9200
 elastic/changeme

@@ -10,6 +10,11 @@ RUN wget https://dl.grafana.com/oss/release/grafana_5.4.2_amd64.deb
 RUN dpkg -i grafana_5.4.2_amd64.deb
 RUN update-rc.d grafana-server defaults
 
+# Configure default datasource and dashboard
+ADD ./provisioning /etc/grafana/provisioning
+ADD ./config.ini /etc/grafana/config.ini
+ADD ./dashboards /var/lib/grafana/dashboards
+
 # On starting container
 
 CMD (service grafana-server start) && (service grafana-server status) && (cat /var/log/grafana/grafana.log) && (tail -f /dev/null)
