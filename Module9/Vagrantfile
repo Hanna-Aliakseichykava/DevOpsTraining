@@ -1,0 +1,163 @@
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "bento/centos-7.5"
+
+
+  config.vm.provider "virtualbox" do |vb|
+  # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+    vb.memory = 1024
+    vb.cpus = 4
+  end
+
+  #
+  #Client nodes (not more that 243)
+  #
+  NODES_COUNT = 1
+  NODES = Hash.new
+
+  (1..NODES_COUNT).each do |i|
+    config.vm.define "mynode#{i}" do |node|
+
+      node.vm.hostname = "mynode#{i}"
+      # Create a private network, which allows host-only access to the machine using a specific IP.
+      nodeIp = "192.168.0.#{10 + i}"
+      node.vm.network "private_network", ip: nodeIp
+
+      NODES["#{node.vm.hostname}"] = nodeIp
+
+      node.vm.provision "shell", inline: <<-SHELL
+
+        yum install java-1.8.0-openjdk -y
+
+
+      SHELL
+
+      # update hosts file
+      node.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "my.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file for [#{node}] is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.server' >> $HOSTS_FILE
+
+      SHELL
+
+
+    end
+  end
+
+
+  # Main Server Instance
+  # http://192.168.0.10
+
+  config.vm.define "myserver" do |myserver|
+
+    myserver.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+    end
+
+    myserver.vm.hostname = "myserver"
+    # Create a private network, which allows host-only access to the machine using a specific IP.
+    myserver.vm.network "private_network", ip: "192.168.0.10"
+
+    # Configure HOSTS
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "my.chef.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.server' >> $HOSTS_FILE
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.workstation' >> $HOSTS_FILE
+    SHELL
+
+    #
+    # Nodes + Server
+    # Ping node machines should work via DNS names
+    #
+    NODES.each do|name,ip|
+
+      myserver.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "#{name}" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file is up to date with node [#{ip} #{name}]: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '#{ip} #{name}' >> $HOSTS_FILE
+      SHELL
+    end
+
+    # Install Chef server
+    # http://192.168.0.10
+    # admin/admin123
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Install chef server"
+
+        wget https://packages.chef.io/stable/el/7/chef-server-core-12.10.0-1.el7.x86_64.rpm
+        rpm -ivh chef-server-core-*.rpm
+
+        chef-server-ctl reconfigure
+        chef-server-ctl status
+
+        echo "create an administrator"
+        chef-server-ctl user-create admin Hanna Aliakseichykava aleks.anna.ur@gmail.com 'admin123' --filename /etc/chef/admin.pem
+
+        echo "create an organization"
+        chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename /etc/chef/testorganization.pem
+
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+        systemctl stop firewalld
+    SHELL
+
+    # Install and configure chefdk
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        wget https://packages.chef.io/files/stable/chefdk/2.0.28/el/7/chefdk-2.0.28-1.el7.x86_64.rpm
+        rpm -ivh chefdk-*.rpm
+
+        chef verify
+        chef --version
+    SHELL
+
+    # Install Knife
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Install Knife"
+        knife configure
+    SHELL
+
+    #
+    # Nodes + Server
+    # Bootstrap nodes
+    #
+    NODES.each do|name,ip|
+
+      myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Bootsrap node [#{ip} #{name}]: "
+        knife bootstrap "#{ip}" --ssh-user vagrant --ssh-password vagrant --node-name "#{name}"
+        echo "Debug - Nodel list: "
+        knife node list
+      SHELL
+    end
+
+    # Directory for WinSCP
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: For convinient usage with WinSCP"
+        mkdir /etc/WINSCP_DIR
+        chmod -R 777 /etc/WINSCP_DIR
+    SHELL
+
+  end
+
+end
