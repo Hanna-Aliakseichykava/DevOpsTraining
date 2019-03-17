@@ -112,6 +112,7 @@ Vagrant.configure("2") do |config|
         echo "create an organization"
         chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename /etc/chef/testorganization.pem
 
+        systemctl start firewalld
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --reload
