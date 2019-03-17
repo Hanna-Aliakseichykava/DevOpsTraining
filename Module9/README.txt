@@ -1,3 +1,6 @@
+vagrant up --provision-with shell
+
+
 on the server
 '192.168.0.10 my.chef.server'
 

@@ -158,12 +158,12 @@ Vagrant.configure("2") do |config|
         echo 'log_level                :info' >> $KNIFE_CONF
         echo 'log_location             STDOUT' >> $KNIFE_CONF
         echo 'node_name                "admin"' >> $KNIFE_CONF
-        echo 'client_key               "\#{current_dir}/admin.pem"' >> $KNIFE_CONF
+        echo 'client_key               "~/chef-repo/.chef/admin.pem"' >> $KNIFE_CONF
         echo 'validation_client_name   "testorganization"' >> $KNIFE_CONF
-        echo 'validation_key           "\#{current_dir}/testorganization.pem"' >> $KNIFE_CONF
-        echo 'chef_server_url          "https://my.chef.server"' >> $KNIFE_CONF
-        echo 'syntax_check_cache_path  "\#{ENV['HOME']}/.chef/syntaxcache"' >> $KNIFE_CONF
-        echo 'cookbook_path            ["\#{current_dir}/../cookbooks"]' >> $KNIFE_CONF 
+        echo 'validation_key           "~/chef-repo/.chef/testorganization.pem"' >> $KNIFE_CONF
+        echo 'chef_server_url          "http://my.chef.server"' >> $KNIFE_CONF
+        echo 'syntax_check_cache_path  "~/chef-repo/.chef/syntaxcache"' >> $KNIFE_CONF
+        echo 'cookbook_path            ["~/chef-repo/.chef/../cookbooks"]' >> $KNIFE_CONF 
 
         cd ~/chef-repo/
         knife client list
