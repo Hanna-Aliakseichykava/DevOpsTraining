@@ -58,6 +58,7 @@ chef --version
 
 
 //Knife
+https://www.itzgeek.com/how-tos/linux/centos-how-tos/setup-chef-12-centos-7-rhel-7.html/2
 
 
 knife bootstrap <IP> -N <server_name> -x root

@@ -46,6 +46,13 @@ Vagrant.configure("2") do |config|
 
       SHELL
 
+      # install libraries
+      node.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: install libraries"
+        yum install -y wget curl git
+      SHELL
+
 
     end
   end
@@ -99,6 +106,7 @@ Vagrant.configure("2") do |config|
     myserver.vm.provision "shell", inline: <<-SHELL
 
         echo "Install chef server"
+        yum install -y wget curl git
 
         wget https://packages.chef.io/stable/el/7/chef-server-core-12.10.0-1.el7.x86_64.rpm
         rpm -ivh chef-server-core-*.rpm
@@ -129,11 +137,36 @@ Vagrant.configure("2") do |config|
         chef --version
     SHELL
 
-    # Install Knife
+    # Configure Knife
     myserver.vm.provision "shell", inline: <<-SHELL
 
-        echo "Debug: Install Knife"
-        knife configure
+        echo "Debug: Configure Knife"
+        
+        cd ~
+        chef generate repo chef-repo
+        mkdir -p ~/chef-repo/.chef
+
+        cp /etc/chef/admin.pem ~/chef-repo/.chef/
+        cp /etc/chef/testorganization.pem ~/chef-repo/.chef/
+
+        export KNIFE_CONF=~/chef-repo/.chef/knife.rb
+        echo 'Create or rewrite knife.rb'
+
+        > $KNIFE_CONF
+
+        echo 'current_dir = File.dirname(__FILE__)' >> $KNIFE_CONF
+        echo 'log_level                :info' >> $KNIFE_CONF
+        echo 'log_location             STDOUT' >> $KNIFE_CONF
+        echo 'node_name                "admin"' >> $KNIFE_CONF
+        echo 'client_key               "\#{current_dir}/admin.pem"' >> $KNIFE_CONF
+        echo 'validation_client_name   "testorganization"' >> $KNIFE_CONF
+        echo 'validation_key           "\#{current_dir}/testorganization.pem"' >> $KNIFE_CONF
+        echo 'chef_server_url          "https://my.chef.server"' >> $KNIFE_CONF
+        echo 'syntax_check_cache_path  "\#{ENV['HOME']}/.chef/syntaxcache"' >> $KNIFE_CONF
+        echo 'cookbook_path            ["\#{current_dir}/../cookbooks"]' >> $KNIFE_CONF 
+
+        cd ~/chef-repo/
+        knife client list
     SHELL
 
     #
@@ -145,9 +178,10 @@ Vagrant.configure("2") do |config|
       myserver.vm.provision "shell", inline: <<-SHELL
 
         echo "Debug: Bootsrap node [#{ip} #{name}]: "
-        knife bootstrap "#{ip}" --ssh-user vagrant --ssh-password vagrant --node-name "#{name}"
+        cd ~/chef-repo/
+        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo --distro centos5-gems
         echo "Debug - Nodel list: "
-        knife node list
+        knife client list
       SHELL
     end
 
