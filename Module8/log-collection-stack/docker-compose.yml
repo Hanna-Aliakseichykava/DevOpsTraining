@@ -1,0 +1,83 @@
+version: '2'
+
+
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.6.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.monitoring.enabled=false
+      - xpack.watcher.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    mem_limit: 1g
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - es
+
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:5.1.2
+    ports:
+      - 5044:5044
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    environment:
+      LS_JAVA_OPTS: "-Xms1g -Xmx4g"
+    networks:
+      - es
+    depends_on:
+      - elasticsearch
+
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.6.2
+    container_name: kibana
+    environment:
+      SERVER_NAME: localhost
+      ELASTICSEARCH_URL: "http://elasticsearch:9200/"
+      ELASTICSEARCH_USERNAME: "elastic"
+      ELASTICSEARCH_PASSWORD: "changeme"
+    ports:
+      - 5601:5601
+        
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65535
+        hard: 65535
+    mem_limit: 1g
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - es
+    depends_on:
+      - elasticsearch
+
+
+
+networks:
+  es:
+    driver: bridge
+        
+volumes:
+  esdata1:
+    driver: local
