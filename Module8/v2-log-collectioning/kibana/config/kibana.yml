@@ -1,0 +1,12 @@
+server.name: kibana
+server.host: 0.0.0.0
+elasticsearch.url: http://elasticsearch:9200
+elasticsearch.requestTimeout: 70000
+elasticsearch.shardTimeout: 70000
+elasticsearch.startupTimeout: 70000
+xpack.infra.enabled: true
+xpack.monitoring.enabled: true
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+xpack.infra.sources.default.logAlias: "logstash-*"
+xpack.infra.sources.default.fields.timestamp: "@timestamp"
+xpack.infra.sources.default.fields.message: ['log','message','@message']

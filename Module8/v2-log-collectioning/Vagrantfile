@@ -1,0 +1,81 @@
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "bento/centos-7.5"
+
+
+  config.vm.provider "virtualbox" do |vb|
+  # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+    vb.memory = 1024
+    vb.cpus = 4
+  end
+
+ 
+
+  config.vm.define "myloadbalancer" do |myloadbalancer|
+
+    # For elastic: increase manually after vm is created
+    myloadbalancer.vm.provider "virtualbox" do |vb|
+      vb.memory = 3096
+    end
+
+    myloadbalancer.vm.hostname = "myloadbalancer"
+    # Create a private network, which allows host-only access to the machine using a specific IP.
+    myloadbalancer.vm.network "private_network", ip: "192.168.0.10"
+
+    #
+    # create the foder /etc/DOCKER_DIR for convinient usage with WinSCP and Putty
+    #
+    #
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      systemctl start firewalld
+
+      firewall-cmd --permanent --zone public --add-service http
+      firewall-cmd --permanent --zone public --add-service https
+
+      firewall-cmd --permanent --zone=public --add-port=22/tcp
+
+      firewall-cmd --reload
+      systemctl stop firewalld
+
+      echo "Debug: For convinient usage with WinSCP"
+      mkdir /etc/DOCKER_DIR
+      chmod -R 777 /etc/DOCKER_DIR
+
+    SHELL
+
+    #
+    # Docker
+    #
+    # Install Docker
+    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Docker" 
+      yum install -y yum-utils
+      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      yum -y install docker-ce
+
+      echo "Debug: Install Docker Compose"
+      curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+      ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+      echo "Debug: Start Docker"
+      systemctl start docker
+      systemctl enable docker
+
+      echo "Debug: Login Docker Hub"
+      sudo docker logout
+      sudo docker login --username hannaautodockerid --password hannaautodockerid
+
+      systemctl daemon-reload
+      systemctl restart docker
+
+    SHELL
+
+
+  end
+
+end
