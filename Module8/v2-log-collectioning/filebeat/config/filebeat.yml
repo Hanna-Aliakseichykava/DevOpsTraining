@@ -6,7 +6,7 @@ filebeat.inputs:
 - type: log
   enabled: true
   paths:
-  - /etc/filebeat/log/catalina.*.log
+  - /etc/filebeat/log/*.log
 
 #----------------
 
