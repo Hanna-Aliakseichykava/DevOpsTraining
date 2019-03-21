@@ -89,10 +89,52 @@ knife cookbook create my_docker_cookbook -o .
 
 For installing and starting docker (configure daemon to use insecure-registry option)
 
+https://www.linode.com/docs/applications/configuration-management/creating-your-first-chef-cookbook/
 
 
-docker_recipe.rb
+//WinSCP
+chmod -R 777 /root
+chmod -R 777 /root/chef-repo/cookbooks
+chmod -R 777 /root/chef-repo/cookbooks/docker_install_book/recipes
 
+
+cd /root/chef-repo/cookbooks
+
+chef generate cookbook docker_install_book
+cd docker_install_book
+ls
+
+cd recipes
+ls
+default.rb
+
+
+To test the recipe, add the LAMP stack cookbook to the Chef server:
+
+//WinSCP
+chmod -R 777 /root/chef-repo/cookbooks/docker_install_book/recipes
+
+
+//upload cookbook
+knife cookbook upload docker_install_book
+
+//verify that cookbook is uploaded
+knife cookbook list
+
+//Add the recipe to node’s run list
+knife node run_list add mynode1 "recipe[docker_install_book]"
+
+
+//apply the configurations defined in the cookbook
+knife ssh 'name:mynode1' 'sudo chef-client' -x vagrant -P 'vagrant'
+
+//Test docker installation on node
+knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'
+
+
+//chef-apply hello.rb
+
+-------------
 
 bash 'install_docker' do
   code <<-EOH
@@ -153,6 +195,11 @@ end
 
 3) write tests
 
+https://habr.com/ru/post/253139/
+
+
+
+
 https://github.com/chefspec/fauxhai/tree/master/lib/fauxhai/platforms
 
 Lets run our tests:
@@ -188,26 +235,6 @@ describe 'Install docker' do
 end
 
 
-4) Upload cookbook to chef server
 
-//berks install && berks upload
-
-knife cookbook upload my_docker_cookbook
-
-knife cookbook list
-
-
-
-5) Deploy cookbook
-
-//Add cookbook to node run list
-
-
-//Run chef client to deploy
-knife ssh "role:<role_name>" "sudo chef-client" -x root
-
-
-
-chef-apply hello.rb
 
 

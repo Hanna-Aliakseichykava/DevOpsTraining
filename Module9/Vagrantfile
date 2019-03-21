@@ -42,7 +42,7 @@ Vagrant.configure("2") do |config|
         grep -q "my.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
         echo 'Debug: HOSTS file for [#{node}] is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
   
-        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.server' >> $HOSTS_FILE
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 myserver' >> $HOSTS_FILE
 
       SHELL
 
@@ -79,7 +79,7 @@ Vagrant.configure("2") do |config|
         grep -q "my.chef.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
         echo 'Debug: HOSTS file is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
   
-        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.server' >> $HOSTS_FILE
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 myserver' >> $HOSTS_FILE
         $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.workstation' >> $HOSTS_FILE
     SHELL
 
@@ -100,6 +100,27 @@ Vagrant.configure("2") do |config|
       SHELL
     end
 
+    # Open ports
+    # http://192.168.0.10
+    #
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        systemctl start firewalld
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+        systemctl stop firewalld
+    SHELL
+
+    # Directory for WinSCP
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: For convinient usage with WinSCP"
+        mkdir /etc/WINSCP_DIR
+        chmod -R 777 /etc/WINSCP_DIR
+    SHELL
+
+
     # Install Chef server
     # http://192.168.0.10
     # admin/admin123
@@ -114,17 +135,6 @@ Vagrant.configure("2") do |config|
         chef-server-ctl reconfigure
         chef-server-ctl status
 
-        echo "create an administrator"
-        chef-server-ctl user-create admin Hanna Aliakseichykava aleks.anna.ur@gmail.com 'admin123' --filename /etc/chef/admin.pem
-
-        echo "create an organization"
-        chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename /etc/chef/testorganization.pem
-
-        systemctl start firewalld
-        firewall-cmd --permanent --zone public --add-service http
-        firewall-cmd --permanent --zone public --add-service https
-        firewall-cmd --reload
-        systemctl stop firewalld
     SHELL
 
     # Install and configure chefdk
@@ -137,37 +147,72 @@ Vagrant.configure("2") do |config|
         chef --version
     SHELL
 
+    #
+    # Create Repo
+    #
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        cd ~
+
+        [ -d "chef-repo" ] && export REPO_EXISTS=true || export REPO_EXISTS=false
+        echo 'Debug: Repo [chef-repo] exists: ' $REPO_EXISTS
+
+        $REPO_EXISTS || echo "Create repo"
+
+        $REPO_EXISTS || chef generate repo chef-repo
+        $REPO_EXISTS || mkdir -p ~/chef-repo/.chef
+
+        $REPO_EXISTS || echo "create an administrator"
+        $REPO_EXISTS || chef-server-ctl user-create admin Hanna Aliakseichykava aleks.anna.ur@gmail.com 'admin123' --filename ~/chef-repo/.chef/admin.pem
+
+        $REPO_EXISTS || echo "create an organization"
+        $REPO_EXISTS || chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename ~/chef-repo/.chef/testorganization-validator.pem
+
+        echo "Debug: Repo"
+        cd .chef
+        ls
+    SHELL
+
+
     # Configure Knife
     myserver.vm.provision "shell", inline: <<-SHELL
 
         echo "Debug: Configure Knife"
-        
-        cd ~
-        chef generate repo chef-repo
-        mkdir -p ~/chef-repo/.chef
-
-        cp /etc/chef/admin.pem ~/chef-repo/.chef/
-        cp /etc/chef/testorganization.pem ~/chef-repo/.chef/
 
         export KNIFE_CONF=~/chef-repo/.chef/knife.rb
-        echo 'Create or rewrite knife.rb'
 
-        > $KNIFE_CONF
+        [ -f $KNIFE_CONF ] && export KNIFE_CONF_EXISTS=true || export KNIFE_CONF_EXISTS=false
+        echo 'Debug: knife.rb exists: ' $KNIFE_CONF_EXISTS
 
-        echo 'current_dir = File.dirname(__FILE__)' >> $KNIFE_CONF
-        echo 'log_level                :info' >> $KNIFE_CONF
-        echo 'log_location             STDOUT' >> $KNIFE_CONF
-        echo 'node_name                "admin"' >> $KNIFE_CONF
-        echo 'client_key               "~/chef-repo/.chef/admin.pem"' >> $KNIFE_CONF
-        echo 'validation_client_name   "testorganization"' >> $KNIFE_CONF
-        echo 'validation_key           "~/chef-repo/.chef/testorganization.pem"' >> $KNIFE_CONF
-        echo 'chef_server_url          "http://my.chef.server"' >> $KNIFE_CONF
-        echo 'syntax_check_cache_path  "~/chef-repo/.chef/syntaxcache"' >> $KNIFE_CONF
-        echo 'cookbook_path            ["~/chef-repo/.chef/../cookbooks"]' >> $KNIFE_CONF 
+
+        $KNIFE_CONF_EXISTS || echo 'Debug: Create or rewrite knife.rb'
+
+        $KNIFE_CONF_EXISTS || > $KNIFE_CONF
+
+        $KNIFE_CONF_EXISTS || echo "current_dir = File.dirname(__FILE__)" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "log_level                :info" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "log_location             STDOUT" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "node_name                'admin'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "client_key               '~/chef-repo/.chef/admin.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "validation_client_name   'testorganization-validator'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "validation_key           '~/chef-repo/.chef/testorganization-validator.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "chef_server_url          'https://myserver/organizations/testorganization'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cache_type               'BasicFile'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cache_options( :path => '~/chef-repo/.chef/checksums' )" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cookbook_path            ['~/chef-repo/.chef/../cookbooks']" >> $KNIFE_CONF
+
 
         cd ~/chef-repo/
+
+        $KNIFE_CONF_EXISTS || echo 'Debug: Fetch certificate'
+        $KNIFE_CONF_EXISTS || knife ssl fetch
+
+        echo 'Debug: Health check'
+        knife ssl check 
+        echo "Debug: Nodel list: "
         knife client list
     SHELL
+
 
     #
     # Nodes + Server
@@ -179,19 +224,14 @@ Vagrant.configure("2") do |config|
 
         echo "Debug: Bootsrap node [#{ip} #{name}]: "
         cd ~/chef-repo/
-        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo --distro centos5-gems
-        echo "Debug - Nodel list: "
+        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo
+        echo "Debug: Nodel list: "
         knife client list
       SHELL
+
     end
 
-    # Directory for WinSCP
-    myserver.vm.provision "shell", inline: <<-SHELL
 
-        echo "Debug: For convinient usage with WinSCP"
-        mkdir /etc/WINSCP_DIR
-        chmod -R 777 /etc/WINSCP_DIR
-    SHELL
 
   end
 
