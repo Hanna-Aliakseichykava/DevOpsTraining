@@ -53,6 +53,18 @@ Vagrant.configure("2") do |config|
         yum install -y wget curl git
       SHELL
 
+      #
+      # Open ports
+      #
+      node.vm.provision "shell", inline: <<-SHELL
+
+        systemctl start firewalld
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+        systemctl stop firewalld
+      SHELL
+
 
     end
   end
@@ -70,6 +82,27 @@ Vagrant.configure("2") do |config|
     myserver.vm.hostname = "myserver"
     # Create a private network, which allows host-only access to the machine using a specific IP.
     myserver.vm.network "private_network", ip: "192.168.0.10"
+
+
+    # Open ports
+    # http://192.168.0.10
+    #
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        systemctl start firewalld
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+        systemctl stop firewalld
+    SHELL
+
+    # Directory for WinSCP
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: For convinient usage with WinSCP"
+        mkdir /etc/WINSCP_DIR
+        chmod -R 777 /etc/WINSCP_DIR
+    SHELL
 
     # Configure HOSTS
     myserver.vm.provision "shell", inline: <<-SHELL
@@ -99,26 +132,6 @@ Vagrant.configure("2") do |config|
         $HOSTS_FILE_IS_UP_TO_DATE || echo '#{ip} #{name}' >> $HOSTS_FILE
       SHELL
     end
-
-    # Open ports
-    # http://192.168.0.10
-    #
-    myserver.vm.provision "shell", inline: <<-SHELL
-
-        systemctl start firewalld
-        firewall-cmd --permanent --zone public --add-service http
-        firewall-cmd --permanent --zone public --add-service https
-        firewall-cmd --reload
-        systemctl stop firewalld
-    SHELL
-
-    # Directory for WinSCP
-    myserver.vm.provision "shell", inline: <<-SHELL
-
-        echo "Debug: For convinient usage with WinSCP"
-        mkdir /etc/WINSCP_DIR
-        chmod -R 777 /etc/WINSCP_DIR
-    SHELL
 
 
     # Install Chef server

@@ -2,20 +2,13 @@ vagrant up --provision-with shell
 
 
 on the server
-'192.168.0.10 my.chef.server'
+'192.168.0.10 myserver'
 
 on the node
 192.168.0.10 my.chef.server
-'192.168.0.10 my.chef.workstation'
+'192.168.0.10 myserver'
 
-Example
-
-Chef Server   chefserver.itzgeek.local	192.168.12.11 
-
-Chef Workstation (Chef Development Kit)   chefdk.itzgeek.local	192.168.12.12
-
-Chef Client        chefclient.itzgeek.local	192.168.12.20
-
+!!!! 'myserver' - name of the virtual box
 
 
 //chef server
@@ -93,9 +86,10 @@ https://www.linode.com/docs/applications/configuration-management/creating-your-
 
 
 //WinSCP
+sudo -s
 chmod -R 777 /root
 chmod -R 777 /root/chef-repo/cookbooks
-chmod -R 777 /root/chef-repo/cookbooks/docker_install_book/recipes
+
 
 
 cd /root/chef-repo/cookbooks
@@ -109,7 +103,7 @@ ls
 default.rb
 
 
-To test the recipe, add the LAMP stack cookbook to the Chef server:
+Add the cookbook to the Chef server:
 
 //WinSCP
 chmod -R 777 /root/chef-repo/cookbooks/docker_install_book/recipes
@@ -134,63 +128,7 @@ knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'
 
 //chef-apply hello.rb
 
--------------
-
-bash 'install_docker' do
-  code <<-EOH
-    echo "Debug: Install Docker" 
-    yum install -y yum-utils
-    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-    yum -y install docker-ce
-  EOH
-  action :run
-end
-
-bash 'install_docker_compose' do
-  code <<-EOH
-    echo "Debug: Install Docker Compose"
-    curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-  EOH
-  action :run
-end
-
-bash 'start_docker' do
-  code <<-EOH
-    echo "Debug: Start Docker"
-    systemctl start docker
-    systemctl enable docker
-
-    echo "Debug: Login Docker Hub"
-    sudo docker logout
-    sudo docker login --username hannaautodockerid --password hannaautodockerid
-  EOH
-  action :run
-end
-
-bash 'start_docker_registry' do
-  code <<-EOH
-    echo "Debug: Start Docker Registry"
-
-    echo "Debug: Configure Docker Registry"
-    [ ! -d "/etc/docker" ] && mkdir /etc/docker && echo "Folder /etc/docker has been created" || echo "Folder /etc/docker exists"
-    export DOCKER_REGISTRY_CONF=/etc/docker/daemon.json
-    echo 'Create or rewrite the file daemon.json'
-    > $DOCKER_REGISTRY_CONF
-    echo '{ "insecure-registries" : ["localhost:5000" ] }' >> $DOCKER_REGISTRY_CONF
-
-    docker run -d -p 5000:5000 --restart=always --name registry registry:2
-  
-    sudo systemctl daemon-reload
-    sudo systemctl restart docker
-
-    firewall-cmd --permanent --zone=public --add-port=5000/tcp
-    firewall-cmd --reload
-    systemctl stop firewalld
-  EOH
-  action :run
-end
+------------------------
 
 
 3) write tests
@@ -198,43 +136,52 @@ end
 https://habr.com/ru/post/253139/
 
 
+Unit:
 
+cd /root/chef-repo/cookbooks/docker_install_book
 
-https://github.com/chefspec/fauxhai/tree/master/lib/fauxhai/platforms
+spec/unit/recipes/default_spec.rb
 
-Lets run our tests:
-$ chef exec spec
-
-//expect(chef_run).to run_bash('command').with_cwd('/home')
-
-./spec/docker_recipe_spec.rb
+chef exec rspec -c
 
 
 
-require 'chefspec'
+----------------------
 
-describe 'Install docker' do
-
-  let(:chef_run) { ChefSpec::SoloRunner.new(platform: 'centos', version: '7.3.1611').converge(described_recipe) }
-
-  it 'installs docker' do
-    expect(chef_run).to run_bash('install_docker').with_cwd('/home')
-  end
-
-  it 'installs docker compose' do
-    expect(chef_run).to run_bash('install_docker_compose').with_cwd('/home')
-  end
-
-  it 'starts docker' do
-    expect(chef_run).to run_bash('start_docker').with_cwd('/home')
-  end
-
-  it 'starts docker_registry' do
-    expect(chef_run).to run_bash('start_docker_registry').with_cwd('/home')
-  end
-end
+https://habr.com/ru/post/253139/
 
 
 
+Integration:
 
+kitchen verify
+или
+kitchen test.
+
+
+
+to run integration tests
+
+
+    # Install vagrant to test cookbooks
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Install dependencies for Vagrant"
+        cd /etc/yum.repos.d/
+        wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
+        yum update -y
+        yum -y install epel-release
+        yum -y install gcc make patch dkms qt libgomp
+        dkms status
+        yum -y install kernel-headers kernel-devel fontforge binutils glibc-headers glibc-devel
+        yum -y install VirtualBox-5.1
+
+        sudo /sbin/rcvboxdrv restart
+        modprobe vboxdrv
+        gpasswd -a vagrant vboxusers
+
+        echo "Install Vagrant"
+        wget https://releases.hashicorp.com/vagrant/1.8.6/vagrant_1.8.6_x86_64.rpm
+        yum -y localinstall vagrant_1.8.6_x86_64.rpm
+    SHELL
 
