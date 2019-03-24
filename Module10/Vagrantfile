@@ -59,12 +59,13 @@ Vagrant.configure("2") do |config|
       node.vm.provision "shell", inline: <<-SHELL
 
         systemctl start firewalld
+        systemctl enable firewalld
+
+        firewall-cmd --zone=public --add-port=22/tcp --permanent
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --reload
-        systemctl stop firewalld
       SHELL
-
 
     end
   end
@@ -90,6 +91,7 @@ Vagrant.configure("2") do |config|
     myserver.vm.provision "shell", inline: <<-SHELL
 
         systemctl start firewalld
+        systemctl enable firewalld
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --reload
@@ -134,12 +136,48 @@ Vagrant.configure("2") do |config|
     end
 
     #
+    # Nexus
+    #
+    # curl -I http://localhost:8081/nexus/
+    # http://192.168.0.10:8081/nexus/
+    # The default username is deployment/deployment123 or admin/admin123
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Nexus"
+
+      yum install java-1.8.0-openjdk-devel -y
+      yum install wget -y
+
+      wget http://download.sonatype.com/nexus/oss/nexus-2.11.2-06-bundle.tar.gz
+      cp nexus-2.11.2-06-bundle.tar.gz /usr/local
+      cd /usr/local
+      tar xvzf nexus-2.11.2-06-bundle.tar.gz
+
+      export NEXUS_HOME=/usr/local/nexus-2.11.2-06
+
+      cp $NEXUS_HOME/bin/nexus /etc/init.d/nexus
+      chmod 755 /etc/init.d/nexus
+      sed -i 's@.*NEXUS_HOME=.*$@NEXUS_HOME="/usr/local/nexus-2.11.2-06"@g' /etc/init.d/nexus
+      sed -i 's@.*RUN_AS_USER=.*$@RUN_AS_USER=root@g' /etc/init.d/nexus
+
+      cd /etc/init.d
+      chkconfig --add nexus
+      chkconfig --levels 345 nexus on
+      service nexus start
+      tail -f /usr/local/nexus/logs/wrapper.log
+
+      firewall-cmd --zone=public --add-port=8081/tcp --permanent
+      firewall-cmd --reload
+
+    SHELL
+
+    #
     # Jenkins
     #
     # systemctl status jenkins
     # http://192.168.0.10:8080
     # Get password: sudo vi /var/lib/jenkins/secrets/initialAdminPassword
-    myloadbalancer.vm.provision "shell", inline: <<-SHELL
+    myserver.vm.provision "shell", inline: <<-SHELL
 
       echo "Debug: Install Jenkins"
  
@@ -151,10 +189,8 @@ Vagrant.configure("2") do |config|
       systemctl start jenkins
       systemctl enable jenkins
 
-      systemctl start firewalld
       firewall-cmd --permanent --zone=public --add-port=8080/tcp
       firewall-cmd --reload
-      systemctl stop firewalld
 
       echo "Debug: Jenkins permissions"
       export PERM_CONF_FILE=/etc/sudoers
@@ -162,10 +198,66 @@ Vagrant.configure("2") do |config|
       grep -q "jenkins" $PERM_CONF_FILE; [ $? -eq 0 ] && export PERM_CONF_FILE_IS_UP_TO_DATE=true || export PERM_CONF_FILE_IS_UP_TO_DATE=false
       echo '/etc/sudoers conf is up to date: ' $PERM_CONF_FILE_IS_UP_TO_DATE
 
+  
       $PERM_CONF_FILE_IS_UP_TO_DATE || echo 'jenkins ALL=(ALL) NOPASSWD: ALL' >> $PERM_CONF_FILE
-
-      systemctl status jenkins
     SHELL
+
+    #
+    # Docker
+    #
+    # Install Docker and create the foder /etc/DOCKER_DIR for convinient usage with WinSCP
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+      echo "Debug: Install Docker" 
+      yum install -y yum-utils
+      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      yum -y install docker-ce
+
+      echo "Debug: Install Docker Compose"
+      curl -L https://github.com/docker/compose/releases/download/1.11.2/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
+      chmod +x /usr/local/bin/docker-compose
+      ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+      echo "Debug: Start Docker"
+      systemctl start docker
+      systemctl enable docker
+
+      echo "Debug: Login Docker Hub"
+      sudo docker logout
+      sudo docker login --username hannaautodockerid --password hannaautodockerid
+
+      echo "Debug: Start Docker Registry"
+
+      echo "Debug: Configure Docker Registry"
+      [ ! -d "/etc/docker" ] && mkdir /etc/docker && echo "Folder /etc/docker has been created" || echo "Folder /etc/docker exists"
+      export DOCKER_REGISTRY_CONF=/etc/docker/daemon.json
+      echo 'Create or rewrite the file daemon.json'
+      > $DOCKER_REGISTRY_CONF
+      echo '{ "insecure-registries" : ["localhost:5000" ] }' >> $DOCKER_REGISTRY_CONF
+
+      docker run -d -p 5000:5000 --restart=always --name registry registry:2
+  
+      sudo systemctl daemon-reload
+      sudo systemctl restart docker
+
+      firewall-cmd --permanent --zone=public --add-port=5000/tcp
+      firewall-cmd --reload
+      systemctl stop firewalld
+
+      echo "Debug: Init Swarm"
+
+      docker swarm init --advertise-addr 192.168.0.10
+      docker node ls
+
+      echo "Debug: For convinient usage with WinSCP"
+      mkdir /etc/DOCKER_DIR
+      chmod -R 777 /etc/DOCKER_DIR
+
+      echo "Debug: Increase used memory config for Elastic"
+      sysctl -w vm.max_map_count=262144
+
+    SHELL
+
 
 
     # Install Chef server
@@ -277,7 +369,7 @@ Vagrant.configure("2") do |config|
       SHELL
 
     end
-
+   
 
 
   end

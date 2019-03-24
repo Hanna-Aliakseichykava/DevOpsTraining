@@ -1,0 +1,28 @@
+---
+driver:
+  name: vagrant
+  provider: virtualbox
+  boot_timeout: 1200
+  customize:
+    cableconnected1: 'on'
+  ssh:
+    insert_key: false
+  
+provisioner:
+  name: chef_zero
+  always_update_cookbooks: true
+
+verifier:
+  name: inspec
+
+platforms:
+  - name: centos-7
+
+suites:
+  - name: default
+    run_list:
+      - recipe[docker_install_book::default]
+    verifier:
+      inspec_tests:
+        - test/smoke/default
+    attributes:
