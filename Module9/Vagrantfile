@@ -59,10 +59,12 @@ Vagrant.configure("2") do |config|
       node.vm.provision "shell", inline: <<-SHELL
 
         systemctl start firewalld
+        systemctl enable firewalld
+
+        firewall-cmd --zone=public --add-port=22/tcp --permanent
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --reload
-        systemctl stop firewalld
       SHELL
 
 
@@ -90,6 +92,7 @@ Vagrant.configure("2") do |config|
     myserver.vm.provision "shell", inline: <<-SHELL
 
         systemctl start firewalld
+        systemctl enable firewalld
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --reload
@@ -244,6 +247,34 @@ Vagrant.configure("2") do |config|
 
     end
 
+   # Install VirtualBox and Vagrant to test cookbooks
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo 'Debug: Install VirtualBox to test cookbooks'   
+        yum -y update
+        cd /etc/yum.repos.d
+        wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
+        yum -y --enablerepo=epel install dkms
+        yum -y groupinstall "Development Tools"
+        yum -y install kernel-devel
+        yum -y install VirtualBox-5.2
+        usermod -a -G vboxusers vagrant
+
+        echo 'Install Vagrant to test cookbooks'
+        yum -y install https://releases.hashicorp.com/vagrant/2.2.0/vagrant_2.2.0_x86_64.rpm
+        vagrant --version
+    SHELL
+    #reboot, systemctl status vboxdrv
+
+    # Verify that Knife is still working
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo 'Debug: Health check after VirtualBox and Vagrant setup'
+        cd ~/chef-repo/
+        knife ssl check 
+        echo 'Debug: Nodel list: '
+        knife client list
+    SHELL
 
 
   end

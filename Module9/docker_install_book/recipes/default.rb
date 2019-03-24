@@ -2,16 +2,20 @@
 # Cookbook:: docker_install_book
 # Recipe:: default
 #
-# Copyright:: 2019, The Authors, All Rights Reserved.
+
+package 'yum-utils' do
+  action :install
+end
+
 
 bash 'install_docker' do
   code <<-EOH
     echo "Debug: Install Docker" 
-    yum install -y yum-utils
     yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
     yum -y install docker-ce
   EOH
   action :run
+  not_if 'yum -q list installed docker-ce &>/dev/null'
 end
 
 bash 'install_docker_compose' do
@@ -22,13 +26,15 @@ bash 'install_docker_compose' do
     ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
   EOH
   action :run
+  not_if { ::File.exist?('/usr/local/bin/docker-compose') }
 end
 
-bash 'start_docker' do
+systemd_unit 'docker' do
+  action [:enable, :restart]
+end
+ 
+bash 'login_to_docker' do
   code <<-EOH
-    echo "Debug: Start Docker"
-    systemctl start docker
-    systemctl enable docker
 
     echo "Debug: Login Docker Hub"
     sudo docker logout
@@ -37,25 +43,29 @@ bash 'start_docker' do
   action :run
 end
 
+
+file '/etc/docker/daemon.json' do
+  content '{ "insecure-registries" : ["localhost:5000" ] }'
+  action :create_if_missing
+end
+
+
 bash 'start_docker_registry' do
   code <<-EOH
     echo "Debug: Start Docker Registry"
 
-    echo "Debug: Configure Docker Registry"
-    [ ! -d "/etc/docker" ] && mkdir /etc/docker && echo "Folder /etc/docker has been created" || echo "Folder /etc/docker exists"
-    export DOCKER_REGISTRY_CONF=/etc/docker/daemon.json
-    echo 'Create or rewrite the file daemon.json'
-    > $DOCKER_REGISTRY_CONF
-    echo '{ "insecure-registries" : ["localhost:5000" ] }' >> $DOCKER_REGISTRY_CONF
-
     docker run -d -p 5000:5000 --restart=always --name registry registry:2
   
-    sudo systemctl daemon-reload
-    sudo systemctl restart docker
+    systemctl start firewalld
+    systemctl enable firewalld
 
     firewall-cmd --permanent --zone=public --add-port=5000/tcp
     firewall-cmd --reload
-    systemctl stop firewalld
+
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+   
   EOH
   action :run
+  not_if 'sudo netstat -plnt | grep ":5000" &>/dev/null'
 end

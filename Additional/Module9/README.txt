@@ -101,12 +101,12 @@ ls
 cd recipes
 ls
 default.rb
-
+-------------------------------
 
 Add the cookbook to the Chef server:
 
-//WinSCP
-chmod -R 777 /root/chef-repo/cookbooks/docker_install_book/recipes
+
+cd /root/chef-repo/cookbooks
 
 
 //upload cookbook
@@ -120,32 +120,67 @@ knife node run_list add mynode1 "recipe[docker_install_book]"
 
 
 //apply the configurations defined in the cookbook
-knife ssh 'name:mynode1' 'sudo chef-client' -x vagrant -P 'vagrant'
+//knife ssh 'name:mynode1' 'sudo chef-client' -x vagrant -P 'vagrant'
+knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_install_book' -x vagrant -P 'vagrant'
+
 
 //Test docker installation on node
 knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'
 
 
-//chef-apply hello.rb
+//chef-apply default.rb
 
 ------------------------
 
 
 3) write tests
 
+
 https://habr.com/ru/post/253139/
+
+https://github.com/chefspec/chefspec/tree/master/examples
 
 
 Unit:
 
 cd /root/chef-repo/cookbooks/docker_install_book
 
-spec/unit/recipes/default_spec.rb
+//spec/unit/recipes/default_spec.rb
 
 chef exec rspec -c
 
 
 
+
+Inspec:
+
+https://novicejava1.blogspot.com/2017/07/testing-chef-code-using-inspec.html
+
+https://github.com/test-kitchen/kitchen-vagrant/commit/3178e84b65d3da318f818a0891b0fcc4b747d559
+
+
+.kitchen.yml
+docker_install_book/test/smoke/default/default_test.rb
+
+
+cd /root/chef-repo/cookbooks/docker_install_book
+
+//kitchen destroy
+//kitchen test
+kitchen verify
+
+
+//delivery local smoke
+
+
+//inspec init profile "my_smoke"
+//inspec.yml
+
+//inspec exec default_test.rb
+
+
+//chmod -R 777 /root
+//chmod -R 777 /root/chef-repo/cookbooks
 ----------------------
 
 https://habr.com/ru/post/253139/
@@ -157,31 +192,3 @@ Integration:
 kitchen verify
 или
 kitchen test.
-
-
-
-to run integration tests
-
-
-    # Install vagrant to test cookbooks
-    myserver.vm.provision "shell", inline: <<-SHELL
-
-        echo "Debug: Install dependencies for Vagrant"
-        cd /etc/yum.repos.d/
-        wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
-        yum update -y
-        yum -y install epel-release
-        yum -y install gcc make patch dkms qt libgomp
-        dkms status
-        yum -y install kernel-headers kernel-devel fontforge binutils glibc-headers glibc-devel
-        yum -y install VirtualBox-5.1
-
-        sudo /sbin/rcvboxdrv restart
-        modprobe vboxdrv
-        gpasswd -a vagrant vboxusers
-
-        echo "Install Vagrant"
-        wget https://releases.hashicorp.com/vagrant/1.8.6/vagrant_1.8.6_x86_64.rpm
-        yum -y localinstall vagrant_1.8.6_x86_64.rpm
-    SHELL
-
