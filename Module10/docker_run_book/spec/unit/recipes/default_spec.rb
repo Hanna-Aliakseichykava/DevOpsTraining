@@ -19,8 +19,6 @@ describe 'docker_run_book::default' do
 
     before do
       stub_command("yum -q list installed docker-ce &>/dev/null").and_return(false)
-      stub_command("sudo netstat -plnt | grep \":8080\" &>/dev/null").and_return(false)
-      stub_command("( ! sudo netstat -plnt | grep \":8080\" &>/dev/null ) && (! sudo netstat -plnt | grep \":8081\" &>/dev/null )").and_return(false)
     end
 
     it 'converges successfully' do
@@ -33,16 +31,6 @@ describe 'docker_run_book::default' do
 
     it 'installs docker' do
       expect(chef_run).to run_bash('install_docker')
-    end
-
-
-    it 'restarts and enables docker' do
-      expect(chef_run).to enable_systemd_unit('docker')
-      expect(chef_run).to restart_systemd_unit('docker')
-    end
-
-    it 'logins to docker' do
-      expect(chef_run).to run_bash('login_to_docker')
     end
 
     it 'creates daemon.json' do
