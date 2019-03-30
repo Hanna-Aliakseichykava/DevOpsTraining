@@ -64,8 +64,10 @@ Vagrant.configure("2") do |config|
         firewall-cmd --zone=public --add-port=22/tcp --permanent
         firewall-cmd --permanent --zone public --add-service http
         firewall-cmd --permanent --zone public --add-service https
-        firewall-cmd --reload
+        firewall-cmd --permanent --zone=public --add-port=8080/tcp
+        firewall-cmd --permanent --zone=public --add-port=8081/tcp
 
+        systemctl stopfirewalld
       SHELL
 
     end
@@ -113,7 +115,7 @@ Vagrant.configure("2") do |config|
 
         export HOSTS_FILE=/etc/hosts
 
-        grep -q "my.chef.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        grep -q "myserver" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
         echo 'Debug: HOSTS file is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
   
         $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 myserver' >> $HOSTS_FILE

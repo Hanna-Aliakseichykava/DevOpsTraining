@@ -40,35 +40,37 @@ file '/etc/docker/daemon.json' do
 end
 
 
-bash 'run_docker_container_8082' do
+bash 'run_docker_container_8080' do
   code <<-EOH
 
     docker pull "myserver:5000/task7:#{node['APP_VERSION']}" 
 
-    docker run -d -p 8082:8080 --name tomcat-container-8082 "task7:#{node['APP_VERSION']}"
+    docker run -d -p 8080:8080 --name tomcat-container-8080 "myserver:5000/task7:#{node['APP_VERSION']}"
 
-    docker stop tomcat-container-8083
-    docker rm tomcat-container-8083
+    docker stop tomcat-container-8081 || true && docker rm tomcat-container-8081 || true
 
-    curl -s http://localhost:8082/app/ | grep --quiet "#{node['APP_VERSION']}"; [ \$? -eq 0 ]  && echo "Deployed on :8082" || echo "Failed to deploy on :8082"
+    docker ps
+
+    sudo netstat -plnt | grep ":8080" &>/dev/null && echo "Deployed on :8080" || echo "Failed to deploy on :8080"
   EOH
   action :run
-  not_if 'sudo netstat -plnt | grep ":8082" &>/dev/null'
+  not_if 'sudo netstat -plnt | grep ":8080" &>/dev/null'
 end
 
 
-bash 'run_docker_container_8083' do
+bash 'run_docker_container_8081' do
   code <<-EOH
 
     docker pull "myserver:5000/task7:#{node['APP_VERSION']}" 
 
-    docker run -d -p 8083:8080 --name tomcat-container-8083 "task7:#{node['APP_VERSION']}"
+    docker run -d -p 8081:8080 --name tomcat-container-8081 "myserver:5000/task7:#{node['APP_VERSION']}"
 
-    docker stop tomcat-container-8082
-    docker rm tomcat-container-8082
+    docker stop tomcat-container-8080 || true && docker rm tomcat-container-8080 || true
 
-    curl -s http://localhost:8083/app/ | grep --quiet "#{node['APP_VERSION']}"; [ \$? -eq 0 ]  && echo "Deployed on :8083" || echo "Failed to deploy on :8083"
+    docker ps
+
+    sudo netstat -plnt | grep ":8081" &>/dev/null && echo "Deployed on :8081" || echo "Failed to deploy on :8081"
   EOH
   action :run
-  only_if 'sudo netstat -plnt | grep ":8082" &>/dev/null'
+  only_if '( ! sudo netstat -plnt | grep ":8080" &>/dev/null ) && (! sudo netstat -plnt | grep ":8081" &>/dev/null )'
 end

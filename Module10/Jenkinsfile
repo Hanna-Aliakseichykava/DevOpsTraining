@@ -11,7 +11,9 @@ pipeline {
     
      LOCAL_DOCKER_REGISTRY_URL = "localhost:5000"
      
-     BALANCER_APP_URL = "http://192.168.0.10:8088/app/"
+     APP_URL_1 = "http://mynode1:8080/app/"
+
+     APP_URL_2 = "http://mynode1:8081/app/"
    }
 
     stages {
@@ -41,18 +43,20 @@ pipeline {
                         sh "sudo knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'"
 
                         def versionCheckResultPort1 = sh (
-                            script: "curl -s ${BALANCER_APP_URL} | grep --quiet ${VERSION}; [ \$? -eq 0 ]  && echo true || echo false",
+                            script: "curl -X GET ${APP_URL_1} | grep ${VERSION} &>/dev/null && echo true || echo false",
                             returnStdout: true
                         ).trim()
-
-                        def versionCheckResultPort2 = sh (
-                            script: "curl -s ${BALANCER_APP_URL} | grep --quiet ${VERSION}; [ \$? -eq 0 ]  && echo true || echo false",
-                            returnStdout: true
-                        ).trim()
-                        
                         println "Version Check - Port 1: [${versionCheckResultPort1}]"
 
+                        def versionChekResultPort2 = sh (
+                            script: "curl -X GET ${APP_URL_2} | grep ${VERSION} &>/dev/null && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
                         println "Version Check - Port 2: [${versionCheckResultPort2}]"
+
+                        if(versionCheckResultPort1 != "true" && versionChekResultPort2 != "true") {
+                            error("Build failed: version check doesn't pass")
+                        }
 
                     }
                 }  

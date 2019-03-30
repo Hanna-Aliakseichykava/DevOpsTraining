@@ -19,7 +19,8 @@ describe 'docker_run_book::default' do
 
     before do
       stub_command("yum -q list installed docker-ce &>/dev/null").and_return(false)
-      stub_command("sudo netstat -plnt | grep \":8082\" &>/dev/null").and_return(false)
+      stub_command("sudo netstat -plnt | grep \":8080\" &>/dev/null").and_return(false)
+      stub_command("( ! sudo netstat -plnt | grep \":8080\" &>/dev/null ) && (! sudo netstat -plnt | grep \":8081\" &>/dev/null )").and_return(false)
     end
 
     it 'converges successfully' do
