@@ -8,9 +8,7 @@ pipeline {
    environment {
      VERSION = '0.0.0'
 
-     BASE_LOCAL_NEXUS_URL = "http://localhost:8081/nexus"
-     BASE_REMOTE_NEXUS_URL = "http://192.168.0.10:8081/nexus"
-     
+    
      LOCAL_DOCKER_REGISTRY_URL = "localhost:5000"
      
      BALANCER_APP_URL = "http://192.168.0.10:8088/app/"
@@ -25,72 +23,37 @@ pipeline {
             }
         }
 
-        stage('Build war') {
-            steps {
-                echo '..........................Building war..........................'
-                dir ('Module10/gradleSample') {
-                    sh "ls"
-                    sh './gradlew incrementMinorVersion'
-                    sh './gradlew build'
-                }
-            }
-        }
-
-        stage('Upload war to Nexus') {
-            steps {
-                echo '..........................Uploading war to Nexus..........................'
-
-                script {
-                        
-                    def basePath = "${env.WORKSPACE}/Module10/gradleSample"
-                    def artifactPath = "${basePath}/build/libs/app.war"
-                    println "Debug: Path app path: ${basePath}"
-
-                    Properties props = new Properties()
-                    props.load(new File("${basePath}/gradle.properties").newDataInputStream())
-                    VERSION = props.getProperty('version')
-
-                    String nexusUploadUrl = "${BASE_LOCAL_NEXUS_URL}/content/repositories/snapshots/module10/${VERSION}/app.war"
-                    println "Debug: Nexus url: ${nexusUploadUrl}"
-
-                    withCredentials([usernamePassword(credentialsId: 'nexuscreds', usernameVariable: 'username', passwordVariable: 'password')]){
-                          def response = sh(script: "curl --upload-file ${artifactPath} -u $username:$password -v ${nexusUploadUrl}", returnStdout: true)
-                          println "=========================Response===================\n${response}"
-                    }
-                    
-                }
-
-            }
-        }
-
          stage('Build docker image, publish it to docker registry, create swarm service') {
             steps {
                 script {
                     
-                    echo '..........................Build docker image..........................'
+                    echo '..........................Build Chef Cookbook..........................'
                     dir ('Module10') {
-                        sh "sudo docker build -t task10:${VERSION} . --build-arg WAR_VERSION=${VERSION} --build-arg REMOTE_NEXUS_URL=${BASE_REMOTE_NEXUS_URL}"
-                        sh "sudo docker image tag task10:${VERSION} ${LOCAL_DOCKER_REGISTRY_URL}/task10:${VERSION}"
-                        sh "sudo docker push ${LOCAL_DOCKER_REGISTRY_URL}/task10:${VERSION}"
                         
-                        //echo '..........................Start swarm service..........................'
-                        //sh "if [[ \"\$(sudo docker service ls --filter name=app-in-tomcat --quiet | wc -l)\" -eq 0 ]]; then (sudo docker service create --replicas 1 --name app-in-tomcat --publish published=8088,target=8080 task10:${VERSION}); else (sudo docker service update --image task10:${VERSION} app-in-tomcat); fi"
-                        //sh "sudo docker service ls"
-                        //sh "sudo docker service inspect --pretty app-in-tomcat-service"
-                        //sh "sudo docker service ps app-in-tomcat-service"
-						
+                        echo '..........................upload updated cookbook and environment file to chef server..........................'
+                        sh "sudo cd /root/chef-repo/cookbooks"
+                        sh "sudo knife cookbook upload docker_run_book"
+                        sh "sudo knife cookbook list"
 
+                        echo '..........................Start Client........................'                        
+                        sh "sudo knife node run_list add mynode1 \"recipe[docker_run_book]\""
+                        sh "sudo knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant'"
+                        sh "sudo knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'"
 
-                        def versionCheckResult = sh (
+                        def versionCheckResultPort1 = sh (
+                            script: "curl -s ${BALANCER_APP_URL} | grep --quiet ${VERSION}; [ \$? -eq 0 ]  && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
+
+                        def versionCheckResultPort2 = sh (
                             script: "curl -s ${BALANCER_APP_URL} | grep --quiet ${VERSION}; [ \$? -eq 0 ]  && echo true || echo false",
                             returnStdout: true
                         ).trim()
                         
-                        println "Version Check: [${versionCheckResult}]"
-                    
-                        if(versionCheckResult != "true") {
-                            error("Build failed: version check doesn't pass")
-                        }
+                        println "Version Check - Port 1: [${versionCheckResultPort1}]"
+
+                        println "Version Check - Port 2: [${versionCheckResultPort2}]"
+
                     }
                 }  
                 

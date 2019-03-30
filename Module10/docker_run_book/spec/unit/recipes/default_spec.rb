@@ -6,7 +6,7 @@
 
 require 'spec_helper'
 
-describe 'docker_install_book::default' do
+describe 'docker_run_book::default' do
 
   context 'When all attributes are default, on an Centos 7' do
   
@@ -19,6 +19,7 @@ describe 'docker_install_book::default' do
 
     before do
       stub_command("yum -q list installed docker-ce &>/dev/null").and_return(false)
+      stub_command("sudo netstat -plnt | grep \":8082\" &>/dev/null").and_return(false)
     end
 
     it 'converges successfully' do
@@ -33,10 +34,6 @@ describe 'docker_install_book::default' do
       expect(chef_run).to run_bash('install_docker')
     end
 
-    it 'installs docker compose' do
-      expect(chef_run).to run_bash('install_docker_compose')
-    end
-
 
     it 'restarts and enables docker' do
       expect(chef_run).to enable_systemd_unit('docker')
@@ -49,12 +46,8 @@ describe 'docker_install_book::default' do
 
     it 'creates daemon.json' do
       expect(chef_run).to create_file_if_missing('/etc/docker/daemon.json').with(
-        content: '{ "insecure-registries" : ["localhost:5000" ] }'
+        content: '{ "insecure-registries" : ["myserver:5000" ] }'
       )
-    end
-
-    it 'starts docker_registry' do
-      expect(chef_run).to run_bash('start_docker_registry')
     end
 
   end

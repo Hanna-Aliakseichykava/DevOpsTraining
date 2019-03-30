@@ -26,12 +26,18 @@ version (get list of image versions from docker registry)
 
 Job should do:
 
-checkout task10 branch
 
+checkout task10 branch
 update attributes/default.rb, metadata.rb, <environment>.json file with selected version from job parameter(version)
 
-upload updated cookbook to chef server, upload updated environment file to chef server, push changes to github task10
-branch
+attributes/default.rb, 
+metadata.rb,
+<environment>.json
+
+
+
+upload updated cookbook to chef server, upload updated environment file to chef server, 
+push changes to github task10 branch
 
 start chef-client
 
@@ -43,7 +49,9 @@ Should be commited: cookbook, Jenkinsfile, script.groovy (get list of versions)
 
 -----------------
 
-1) Install SSH Pipeline Steps plugin
+1) Install Jenkins plugin SSH Pipeline Steps
+
+2) Install Jenkins plugin Active Choices
 
 2) Install Credentials Binding Plugin (or just verify that it is already installed)
 
@@ -80,3 +88,52 @@ admin2/admin2
 
 http://192.168.0.10:8088/app/
 
+
+-------------------
+
+Test Cookbook
+
+//WinSCP
+sudo -s
+chmod -R 777 /root
+chmod -R 777 /root/chef-repo/cookbooks
+
+
+
+
+
+
+//unit test
+
+cd /root/chef-repo/cookbooks/docker_run_book
+chef exec rspec -c
+
+
+Add the cookbook to the Chef server:
+
+cd /root/chef-repo/cookbooks
+
+
+//upload cookbook
+knife cookbook upload docker_run_book
+
+//verify that cookbook is uploaded
+knife cookbook list
+
+//Add the recipe to node’s run list
+knife node run_list add mynode1 "recipe[docker_run_book]"
+
+
+//apply the configurations defined in the cookbook
+knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant'
+
+
+//Test docker installation on node
+knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant'
+
+knife ssh 'name:mynode1' 'curl -X GET http://localhost:8082/app/' -x vagrant -P 'vagrant'
+
+knife ssh 'name:mynode1' 'curl -X GET http://localhost:8083/app/' -x vagrant -P 'vagrant'
+
+http://localhost:8082/app/
+http://192.168.0.11:8083/app/
