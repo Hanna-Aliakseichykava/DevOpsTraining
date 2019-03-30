@@ -1,1 +1,1 @@
-node.default['APP_VERSION']          = '0.0.20'
+node.default['APP_VERSION']          = '0.0.21'
