@@ -62,8 +62,6 @@ Vagrant.configure("2") do |config|
         systemctl enable firewalld
 
         firewall-cmd --zone=public --add-port=22/tcp --permanent
-        firewall-cmd --permanent --zone public --add-service http
-        firewall-cmd --permanent --zone public --add-service https
         firewall-cmd --permanent --zone=public --add-port=8080/tcp
         firewall-cmd --permanent --zone=public --add-port=8081/tcp
 

@@ -152,27 +152,61 @@ docker rm tomcat-container-8083
 
 docker ps
 
-curl -X GET http://localhost:8082/app/
-
-curl -s http://localhost:8082/app/ | grep --quiet "0.0.11"; [ \$? -eq 0 ] && echo "Deployed on :8082" || echo "Failed to deploy on :8082"
-
-
-( ! sudo netstat -plnt | grep ":8083" &>/dev/null ) && (! sudo netstat -plnt | grep ":8082" &>/dev/null ) && echo "true" || echo "false"
-
 
 
 curl -X GET http://localhost:8083/app/
 
-curl -X GET http://mynode1:8083/app/
 
-curl -X GET http://mynode1:8083/app/ | grep "0.0.13" &>/dev/null && echo true || echo false
-
+------------------------------
 
 
-systemctl stop firewalld
+Create chef repo:
 
-firewall-cmd --permanent --zone=public --add-port=8082/tcp
 
-firewall-cmd --permanent --zone=public --add-port=8083/tcp
 
-        firewall-cmd --reload
+
+cd /root
+
+chef generate repo chef-repo
+mkdir -p /root/chef-repo/.chef
+
+chef-server-ctl org-delete testorganization
+chef-server-ctl user-delete admin
+
+chef-server-ctl user-create admin Hanna Aliakseichykava aleks.anna.ur@gmail.com 'admin123' --filename /root/chef-repo/.chef/admin.pem
+
+chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename /root/chef-repo/.chef/testorganization-validator.pem
+
+
+
+
+
+
+export KNIFE_CONF=/root/chef-repo/.chef/knife.rb
+
+> $KNIFE_CONF
+
+echo "current_dir = File.dirname(__FILE__)" >> $KNIFE_CONF
+echo "log_level                :info" >> $KNIFE_CONF
+echo "log_location             STDOUT" >> $KNIFE_CONF
+echo "node_name                'admin'" >> $KNIFE_CONF
+echo "client_key               '/root/chef-repo/.chef/admin.pem'" >> $KNIFE_CONF
+echo "validation_client_name   'testorganization-validator'" >> $KNIFE_CONF
+echo "validation_key           '/root/chef-repo/.chef/testorganization-validator.pem'" >> $KNIFE_CONF
+echo "chef_server_url          'https://myserver/organizations/testorganization'" >> $KNIFE_CONF
+echo "cache_type               'BasicFile'" >> $KNIFE_CONF
+echo "cache_options( :path => '/root/chef-repo/.chef/checksums' )" >> $KNIFE_CONF
+echo "cookbook_path            ['/root/chef-repo/.chef/../cookbooks']" >> $KNIFE_CONF
+
+
+cd /root/chef-repo/
+
+knife ssl fetch
+
+knife ssl check 
+
+
+
+sudo knife bootstrap "192.168.0.11" -N "mynode1" -x vagrant -P vagrant --sudo
+
+knife client list
