@@ -61,7 +61,7 @@ pipeline {
                     echo '..........................Copy Cookbook to chef-repo directory..........................'
 
                     def basePath = "${env.WORKSPACE}/Module10/docker_run_book"
-                    sh "sudo cp -nr ${basePath} /root/chef-repo/cookbooks/"
+                    sh "sudo cp -ru ${basePath} /root/chef-repo/cookbooks/"
 
                 }  
                 
@@ -128,7 +128,7 @@ pipeline {
 
                     sh "git checkout master"
                     sh "git pull"
-                    sh "git tag -a v${VERSION} -m \"New tag v${VERSION}\""
+                    sh "git tag -a v${VERSION} -m \"New tag vTask10${VERSION}\""
                     sh 'git merge Module10'
 
                     withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
