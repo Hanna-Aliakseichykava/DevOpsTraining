@@ -7,6 +7,9 @@ package 'yum-utils' do
   action :install
 end
 
+package 'lsof' do
+  action :install
+end
 
 bash 'install_docker' do
   code <<-EOH
@@ -36,22 +39,22 @@ bash 'run_docker_container_on_available_port' do
   code <<-EOH
   
   
-    if (sudo netstat -plnt | grep ":8080" &>/dev/null;)
+    if ! [[ $(lsof -i:8080) ]]
     then
        
-      docker pull "myserver:5000/task7:#{node['APP_VERSION']}" 
-
-      docker run -d -p 8081:8080 --name tomcat-container-8081 "myserver:5000/task7:#{node['APP_VERSION']}"
-
-      docker stop tomcat-container-8080 || true && docker rm tomcat-container-8080 || true
-
-    else      
-
       docker pull "myserver:5000/task7:#{node['APP_VERSION']}" 
 
       docker run -d -p 8080:8080 --name tomcat-container-8080 "myserver:5000/task7:#{node['APP_VERSION']}"
 
       docker stop tomcat-container-8081 || true && docker rm tomcat-container-8081 || true
+
+    else      
+
+      docker pull "myserver:5000/task7:#{node['APP_VERSION']}" 
+
+      docker run -d -p 8081:8080 --name tomcat-container-8081 "myserver:5000/task7:#{node['APP_VERSION']}"
+
+      docker stop tomcat-container-8080 || true && docker rm tomcat-container-8080 || true
 
     fi
 
