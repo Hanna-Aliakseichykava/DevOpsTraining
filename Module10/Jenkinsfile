@@ -128,7 +128,7 @@ pipeline {
 
                     sh "git checkout master"
                     sh "git pull"
-                    sh "git tag -a v${VERSION} -m \"New tag vTask10${VERSION}\""
+                    sh "git tag -a vTask10${VERSION} -m \"New tag vTask10${VERSION}\""
                     sh 'git merge Module10'
 
                     withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
