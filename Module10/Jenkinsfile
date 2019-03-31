@@ -1,0 +1,144 @@
+
+pipeline {
+
+    agent {
+        label ""
+    }
+
+   environment {
+     
+     APP_URL_1 = "http://mynode1:8080/app/"
+
+     APP_URL_2 = "http://mynode1:8081/app/"
+   }
+
+    stages {
+
+        stage('Clone sources') {
+            steps {
+                echo '..........................Clone or pull the repo..........................'
+                git url: 'https://github.com/Hanna-Aliakseichykava/DevOpsTraining.git', branch: 'Module10'
+            }
+        }
+
+         stage('Update Chef Cookbook') {
+            steps {
+                script {
+                    
+                    echo '..........................Update default attributes with new version..........................'
+
+                    def basePath = "${env.WORKSPACE}/Module10/docker_run_book"
+                    println "Debug: Path : ${basePath}"
+
+                    File defaultAttributesFile = new File("${basePath}/attributes/default.rb")
+                    defaultAttributesFile.write "node.default['APP_VERSION']          = '${VERSION}'"
+ 
+                    println defaultAttributesFile.text
+
+                    echo '..........................Update metadata with new version..........................'
+
+                    File metadataFile = new File("${basePath}/metadata.rb")
+
+                    def lines = metadataFile.readLines()
+
+                    lines[lines.size()-1] = "version '${VERSION}'"
+
+                    metadataFile.write lines[0] + "\n"
+                    for (int i = 1; i < lines.size(); i++) {
+                        metadataFile << lines[i] + "\n"
+                    }
+
+                    println metadataFile.text
+                }  
+                
+            }
+        }
+
+        stage('Copy Cookbook to chef-repo directory') {
+            steps {
+                script {
+                    
+                    echo '..........................Copy Cookbook to chef-repo directory..........................'
+
+                    def basePath = "${env.WORKSPACE}/Module10/docker_run_book"
+                    sh "sudo cp -ru ${basePath} /root/chef-repo/cookbooks/"
+
+                }  
+                
+            }
+        }
+
+         stage('Upload updated cookbook to chef server') {
+            steps {
+                script {
+                        
+                    echo '..........................Upload updated cookbook and environment file to chef server..........................'
+                    sh "sudo cd /root/chef-repo/cookbooks"
+                    sh "sudo knife cookbook upload docker_run_book -c /root/chef-repo/.chef/knife.rb"
+                    sh "sudo knife cookbook list -c /root/chef-repo/.chef/knife.rb"
+                }  
+                
+            }
+        }
+
+         stage('Start Client') {
+            steps {
+                script {
+
+                        echo '..........................Start Client........................'
+                        sh "sudo knife node run_list add mynode1 \"recipe[docker_run_book]\" -c /root/chef-repo/.chef/knife.rb"
+                        sh "sudo knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
+                        sh "sudo knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
+
+                        def versionCheckResultPort1 = sh (
+                            script: "curl -X GET ${APP_URL_1} | grep ${VERSION} &>/dev/null && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
+                        println "Version Check - Port 1: [${versionCheckResultPort1}]"
+
+                        def versionChekResultPort2 = sh (
+                            script: "curl -X GET ${APP_URL_2} | grep ${VERSION} &>/dev/null && echo true || echo false",
+                            returnStdout: true
+                        ).trim()
+                        println "Version Check - Port 2: [${versionChekResultPort2}]"
+
+                        if(versionCheckResultPort1 != "true" && versionChekResultPort2 != "true") {
+                            error("Build failed: version check doesn't pass")
+                        }
+
+                    }
+                
+            }
+        }
+
+
+        stage('Push to the repo') {
+            steps {
+                script {
+                    
+                    sh "git config --global user.email \"aleks.anna.ur@gmail.com\""
+                    sh "git config --global user.name \"Anna\""
+  
+                    sh "git checkout Module10"
+                    sh "git commit -am \"Version is updated to ${VERSION}\""
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining Module10")
+                    } 
+
+                    sh "git checkout master"
+                    sh "git pull"
+                    sh "git tag -a v${VERSION} -m \"New tag vTask10${VERSION}\""
+                    sh 'git merge Module10'
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining master")
+                          sh("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining --tags")
+                    }  
+                }  
+                
+            }
+        }
+
+    }
+}
