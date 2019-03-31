@@ -1,0 +1,282 @@
+
+Vagrant.configure("2") do |config|
+
+  config.vm.box = "bento/centos-7.5"
+
+
+  config.vm.provider "virtualbox" do |vb|
+  # Display the VirtualBox GUI when booting the machine
+    vb.gui = true
+    vb.memory = 1024
+    vb.cpus = 4
+  end
+
+  #
+  #Client nodes (not more that 243)
+  #
+  NODES_COUNT = 1
+  NODES = Hash.new
+
+  (1..NODES_COUNT).each do |i|
+    config.vm.define "mynode#{i}" do |node|
+
+      node.vm.hostname = "mynode#{i}"
+      # Create a private network, which allows host-only access to the machine using a specific IP.
+      nodeIp = "192.168.0.#{10 + i}"
+      node.vm.network "private_network", ip: nodeIp
+
+      NODES["#{node.vm.hostname}"] = nodeIp
+
+      node.vm.provision "shell", inline: <<-SHELL
+
+        yum install java-1.8.0-openjdk -y
+
+
+      SHELL
+
+      # update hosts file
+      node.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "my.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file for [#{node}] is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 myserver' >> $HOSTS_FILE
+
+      SHELL
+
+      # install libraries
+      node.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: install libraries"
+        yum install -y wget curl git
+      SHELL
+
+      #
+      # Open ports
+      #
+      node.vm.provision "shell", inline: <<-SHELL
+
+        systemctl start firewalld
+        systemctl enable firewalld
+
+        firewall-cmd --zone=public --add-port=22/tcp --permanent
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+      SHELL
+
+
+    end
+  end
+
+
+  # Main Server Instance
+  # http://192.168.0.10
+
+  config.vm.define "myserver" do |myserver|
+
+    myserver.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+    end
+
+    myserver.vm.hostname = "myserver"
+    # Create a private network, which allows host-only access to the machine using a specific IP.
+    myserver.vm.network "private_network", ip: "192.168.0.10"
+
+
+    # Open ports
+    # http://192.168.0.10
+    #
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        systemctl start firewalld
+        systemctl enable firewalld
+        firewall-cmd --permanent --zone public --add-service http
+        firewall-cmd --permanent --zone public --add-service https
+        firewall-cmd --reload
+        systemctl stop firewalld
+    SHELL
+
+    # Directory for WinSCP
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: For convinient usage with WinSCP"
+        mkdir /etc/WINSCP_DIR
+        chmod -R 777 /etc/WINSCP_DIR
+    SHELL
+
+    # Configure HOSTS
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "my.chef.server" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file is up to date: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 myserver' >> $HOSTS_FILE
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '192.168.0.10 my.chef.workstation' >> $HOSTS_FILE
+    SHELL
+
+    #
+    # Nodes + Server
+    # Ping node machines should work via DNS names
+    #
+    NODES.each do|name,ip|
+
+      myserver.vm.provision "shell", inline: <<-SHELL
+
+        export HOSTS_FILE=/etc/hosts
+
+        grep -q "#{name}" $HOSTS_FILE; [ $? -eq 0 ] && export HOSTS_FILE_IS_UP_TO_DATE=true || export HOSTS_FILE_IS_UP_TO_DATE=false
+        echo 'Debug: HOSTS file is up to date with node [#{ip} #{name}]: ' $HOSTS_FILE_IS_UP_TO_DATE
+  
+        $HOSTS_FILE_IS_UP_TO_DATE || echo '#{ip} #{name}' >> $HOSTS_FILE
+      SHELL
+    end
+
+
+    # Install Chef server
+    # http://192.168.0.10
+    # admin/admin123
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Install chef server"
+        yum install -y wget curl git
+
+        wget https://packages.chef.io/stable/el/7/chef-server-core-12.10.0-1.el7.x86_64.rpm
+        rpm -ivh chef-server-core-*.rpm
+
+        chef-server-ctl reconfigure
+        chef-server-ctl status
+
+    SHELL
+
+    # Install and configure chefdk
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        wget https://packages.chef.io/files/stable/chefdk/2.0.28/el/7/chefdk-2.0.28-1.el7.x86_64.rpm
+        rpm -ivh chefdk-*.rpm
+
+        chef verify
+        chef --version
+    SHELL
+
+    #
+    # Create Repo
+    #
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        cd ~
+
+        [ -d "chef-repo" ] && export REPO_EXISTS=true || export REPO_EXISTS=false
+        echo 'Debug: Repo [chef-repo] exists: ' $REPO_EXISTS
+
+        $REPO_EXISTS || echo "Create repo"
+
+        $REPO_EXISTS || chef generate repo chef-repo
+        $REPO_EXISTS || mkdir -p ~/chef-repo/.chef
+
+        $REPO_EXISTS || echo "create an administrator"
+        $REPO_EXISTS || chef-server-ctl user-create admin Hanna Aliakseichykava aleks.anna.ur@gmail.com 'admin123' --filename ~/chef-repo/.chef/admin.pem
+
+        $REPO_EXISTS || echo "create an organization"
+        $REPO_EXISTS || chef-server-ctl org-create testorganization 'Test Organization, Inc.' --association_user admin --filename ~/chef-repo/.chef/testorganization-validator.pem
+
+        echo "Debug: Repo"
+        cd .chef
+        ls
+    SHELL
+
+
+    # Configure Knife
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Configure Knife"
+
+        export KNIFE_CONF=~/chef-repo/.chef/knife.rb
+
+        [ -f $KNIFE_CONF ] && export KNIFE_CONF_EXISTS=true || export KNIFE_CONF_EXISTS=false
+        echo 'Debug: knife.rb exists: ' $KNIFE_CONF_EXISTS
+
+
+        $KNIFE_CONF_EXISTS || echo 'Debug: Create or rewrite knife.rb'
+
+        $KNIFE_CONF_EXISTS || > $KNIFE_CONF
+
+        $KNIFE_CONF_EXISTS || echo "current_dir = File.dirname(__FILE__)" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "log_level                :info" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "log_location             STDOUT" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "node_name                'admin'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "client_key               '~/chef-repo/.chef/admin.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "validation_client_name   'testorganization-validator'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "validation_key           '~/chef-repo/.chef/testorganization-validator.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "chef_server_url          'https://myserver/organizations/testorganization'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cache_type               'BasicFile'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cache_options( :path => '~/chef-repo/.chef/checksums' )" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cookbook_path            ['~/chef-repo/.chef/../cookbooks']" >> $KNIFE_CONF
+
+
+        cd ~/chef-repo/
+
+        $KNIFE_CONF_EXISTS || echo 'Debug: Fetch certificate'
+        $KNIFE_CONF_EXISTS || knife ssl fetch
+
+        echo 'Debug: Health check'
+        knife ssl check 
+        echo "Debug: Nodel list: "
+        knife client list
+    SHELL
+
+
+    #
+    # Nodes + Server
+    # Bootstrap nodes
+    #
+    NODES.each do|name,ip|
+
+      myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Bootsrap node [#{ip} #{name}]: "
+        cd ~/chef-repo/
+        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo
+        echo "Debug: Nodel list: "
+        knife client list
+      SHELL
+
+    end
+
+   # Install VirtualBox and Vagrant to test cookbooks
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo 'Debug: Install VirtualBox to test cookbooks'   
+        yum -y update
+        cd /etc/yum.repos.d
+        wget http://download.virtualbox.org/virtualbox/rpm/rhel/virtualbox.repo
+        yum -y --enablerepo=epel install dkms
+        yum -y groupinstall "Development Tools"
+        yum -y install kernel-devel
+        yum -y install VirtualBox-5.2
+        usermod -a -G vboxusers vagrant
+
+        echo 'Install Vagrant to test cookbooks'
+        yum -y install https://releases.hashicorp.com/vagrant/2.2.0/vagrant_2.2.0_x86_64.rpm
+        vagrant --version
+    SHELL
+    #reboot, systemctl status vboxdrv
+
+    # Verify that Knife is still working
+    myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo 'Debug: Health check after VirtualBox and Vagrant setup'
+        cd ~/chef-repo/
+        knife ssl check 
+        echo 'Debug: Nodel list: '
+        knife client list
+    SHELL
+
+
+  end
+
+end
