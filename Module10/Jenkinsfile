@@ -7,9 +7,9 @@ pipeline {
 
    environment {
      
-     APP_URL_1 = "http://mynode1:8080/app/"
+     APP_URL_1 = "http://${NODE_NAME}:8080/app/"
 
-     APP_URL_2 = "http://mynode1:8081/app/"
+     APP_URL_2 = "http://${NODE_NAME}:8081/app/"
    }
 
     stages {
@@ -86,9 +86,9 @@ pipeline {
                 script {
 
                         echo '..........................Start Client........................'
-                        sh "sudo knife node run_list add mynode1 \"recipe[docker_run_book]\" -c /root/chef-repo/.chef/knife.rb"
-                        sh "sudo knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
-                        sh "sudo knife ssh 'name:mynode1' 'sudo docker -v' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
+                        sh "sudo knife node run_list add ${NODE_NAME} \"recipe[docker_run_book]\" -c /root/chef-repo/.chef/knife.rb"
+                        sh "sudo knife ssh 'name:${NODE_NAME}' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
+                        sh "sudo knife ssh 'name:${NODE_NAME}' 'sudo docker -v' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
 
                         def versionCheckResultPort1 = sh (
                             script: "curl -X GET ${APP_URL_1} | grep ${VERSION} &>/dev/null && echo true || echo false",
