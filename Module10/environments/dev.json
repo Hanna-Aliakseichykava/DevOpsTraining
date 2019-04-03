@@ -8,6 +8,6 @@
     "override_attributes": {
     },
     "cookbook_versions": {
-        "docker_run_book": "= 0.0.38"
+        "docker_run_book": "= 0.0.39"
     }
 }
