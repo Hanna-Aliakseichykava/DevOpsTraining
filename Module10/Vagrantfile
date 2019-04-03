@@ -65,7 +65,7 @@ Vagrant.configure("2") do |config|
         firewall-cmd --permanent --zone=public --add-port=8080/tcp
         firewall-cmd --permanent --zone=public --add-port=8081/tcp
 
-        systemctl stopfirewalld
+        systemctl stop firewalld
       SHELL
 
     end
@@ -312,7 +312,7 @@ Vagrant.configure("2") do |config|
 
         echo "Debug: Configure Knife"
 
-        export KNIFE_CONF=~/chef-repo/.chef/knife.rb
+        export KNIFE_CONF=/root/chef-repo/.chef/knife.rb
 
         [ -f $KNIFE_CONF ] && export KNIFE_CONF_EXISTS=true || export KNIFE_CONF_EXISTS=false
         echo 'Debug: knife.rb exists: ' $KNIFE_CONF_EXISTS
@@ -322,17 +322,16 @@ Vagrant.configure("2") do |config|
 
         $KNIFE_CONF_EXISTS || > $KNIFE_CONF
 
-        $KNIFE_CONF_EXISTS || echo "current_dir = File.dirname(__FILE__)" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "log_level                :info" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "log_location             STDOUT" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "node_name                'admin'" >> $KNIFE_CONF
-        $KNIFE_CONF_EXISTS || echo "client_key               '~/chef-repo/.chef/admin.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "client_key               '/root/chef-repo/.chef/admin.pem'" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "validation_client_name   'testorganization-validator'" >> $KNIFE_CONF
-        $KNIFE_CONF_EXISTS || echo "validation_key           '~/chef-repo/.chef/testorganization-validator.pem'" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "validation_key           '/root/chef-repo/.chef/testorganization-validator.pem'" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "chef_server_url          'https://myserver/organizations/testorganization'" >> $KNIFE_CONF
         $KNIFE_CONF_EXISTS || echo "cache_type               'BasicFile'" >> $KNIFE_CONF
-        $KNIFE_CONF_EXISTS || echo "cache_options( :path => '~/chef-repo/.chef/checksums' )" >> $KNIFE_CONF
-        $KNIFE_CONF_EXISTS || echo "cookbook_path            ['~/chef-repo/.chef/../cookbooks']" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cache_options( :path => '/root/chef-repo/.chef/checksums' )" >> $KNIFE_CONF
+        $KNIFE_CONF_EXISTS || echo "cookbook_path            ['/root/chef-repo/.chef/../cookbooks']" >> $KNIFE_CONF
 
 
         cd ~/chef-repo/
@@ -346,24 +345,6 @@ Vagrant.configure("2") do |config|
         knife client list
     SHELL
 
-
-    #
-    # Nodes + Server
-    # Bootstrap nodes
-    #
-    NODES.each do|name,ip|
-
-      myserver.vm.provision "shell", inline: <<-SHELL
-
-        echo "Debug: Bootsrap node [#{ip} #{name}]: "
-        cd ~/chef-repo/
-        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo
-        echo "Debug: Nodel list: "
-        knife client list
-      SHELL
-
-    end
-   
     #
     # Chef manager console
     # https://192.168.0.10/organizations/testorganization/nodes
@@ -381,6 +362,28 @@ Vagrant.configure("2") do |config|
         chef-manage-ctl reconfigure
 
     SHELL
+
+
+    #
+    # Nodes + Server
+    # Bootstrap nodes
+    #
+    NODES.each do|name,ip|
+
+      myserver.vm.provision "shell", inline: <<-SHELL
+
+        echo "Debug: Bootsrap node [#{ip} #{name}]: "
+        cd ~/chef-repo/
+        knife bootstrap "#{ip}" -N "#{name}" -x vagrant -P vagrant --sudo
+
+        echo "Debug: Assign environment for node [#{ip} #{name}]: "
+        knife node environment set "#{name}" dev
+
+        echo "Debug: Nodel list: "
+        knife client list
+      SHELL
+
+    end
 
 
   end

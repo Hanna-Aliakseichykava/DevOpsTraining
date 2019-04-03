@@ -1,0 +1,28 @@
+// VERSION
+
+import groovy.json.JsonSlurper
+
+def json = 'curl -X GET http://localhost:5000/v2/task7/tags/list'.execute().text
+
+def jsonSlurper = new JsonSlurper()
+def object = jsonSlurper.parseText(json)
+
+return object.tags
+
+
+
+// ENVIRONMENT_NAME
+
+tags = []
+text = "sudo knife environment list -c /root/chef-repo/.chef/knife.rb".execute().text
+text.eachLine { tags.push(it) }
+return tags
+
+
+// NODE_NAME
+//Referenced parameters: ENVIRONMENT_NAME
+
+tags = []
+text = "sudo knife node list -E ${ENVIRONMENT_NAME} -c /root/chef-repo/.chef/knife.rb".execute().text
+text.eachLine { tags.push(it) }
+return tags

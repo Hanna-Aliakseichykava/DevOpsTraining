@@ -5,35 +5,11 @@ Install Jenkins plugin Active Choices plugin
 
 
 
-2. Create cookbook to deploy greeting app as docker container:
-
-(Assume we have already installed some web server(LB) and configured it to route traffic to 8080 or 8081 ports)
-
-Cookbook should do:
-
-Deploy new version of container on available port (8081 or 8080), need to detect which is available
-(-p <available>:8080)
-
-Stop and remove old container( in case if it is not first deploy)
-
-Note: do not hardcode new image version, specify it in attributes/default.rb file
-
-
-
-3. Create Jenkins job with parameter:
-
-version (get list of image versions from docker registry)
-
 Job should do:
 
 
 checkout task10 branch
 update attributes/default.rb, metadata.rb, <environment>.json file with selected version from job parameter(version)
-
-attributes/default.rb, 
-metadata.rb,
-<environment>.json
-
 
 
 upload updated cookbook to chef server, upload updated environment file to chef server, 
@@ -48,6 +24,9 @@ Should be commited: cookbook, Jenkinsfile, script.groovy (get list of versions)
 
 
 -----------------
+
+http://192.168.0.10:8080
+Get password: sudo vi /var/lib/jenkins/secrets/initialAdminPassword
 
 1) Install Jenkins plugin SSH Pipeline Steps
 
@@ -97,9 +76,6 @@ Test Cookbook
 sudo -s
 chmod -R 777 /root
 chmod -R 777 /root/chef-repo/cookbooks
-
-
-
 
 
 
@@ -157,7 +133,83 @@ docker ps
 curl -X GET http://localhost:8083/app/
 
 
+---------------------------
+
+v2
+
+//unit test
+
+cd /root/chef-repo/cookbooks/docker_run_book
+chef exec rspec -c
+
+
+
+cd /root/chef-repo/cookbooks/docker_run_book && sudo berks install && berks upload
+
+
+//sudo knife cookbook list -c /root/chef-repo/.chef/knife.rb
+
+
+//Add the recipe to node’s run list
+//knife node run_list add mynode1 "recipe[docker_run_book]"
+
+//apply the configurations defined in the cookbook
+knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant'
+
+
+//////
+
+
+knife cookbook delete docker_run_book
+
+
+
+
+cd /root/chef-repo/cookbooks/docker_run_book && sudo berks install && berks upload
+
+knife ssh 'name:mynode1' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant'
+
+vi :q/var/chef/cache/chef-stacktrace/var/chef/cache/chef-stacktrace.out
+
+//////
+
+test on the node:
+
+
+docker pull "myserver:5000/task7:0.0.32" 
+
+docker run -d -p 8080:8080 --name tomcat-container-8080 "myserver:5000/task7:0.0.32"
+
+docker stop tomcat-container-8081 || true && docker rm tomcat-container-8081 || true
+
 ------------------------------
+
+https://subscription.packtpub.com/book/networking_and_servers/9781785287947/1/ch01lvl1sec23/using-environments
+
+
+cd /root/chef-repo/
+knife node environment set mynode1 dev
+
+
+knife environment from file /root/chef-repo/environments/dev.json -c /root/chef-repo/.chef/knife.rb
+
+
+
+
+sudo knife environment list -c /root/chef-repo/.chef/knife.rb
+
+sudo knife node list -E dev -c /root/chef-repo/.chef/knife.rb
+
+
+Old:
+
+sh "sudo knife node run_list add ${NODE_NAME} \"recipe[docker_run_book]\" -c /root/chef-repo/.chef/knife.rb"
+sh "sudo knife ssh 'name:${NODE_NAME}' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
+
+New:
+
+
+----------------------------------
 
 
 Create chef repo:

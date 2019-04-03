@@ -33,11 +33,5 @@ describe 'docker_run_book::default' do
       expect(chef_run).to run_bash('install_docker')
     end
 
-    it 'creates daemon.json' do
-      expect(chef_run).to create_file_if_missing('/etc/docker/daemon.json').with(
-        content: '{ "insecure-registries" : ["myserver:5000" ] }'
-      )
-    end
-
   end
 end
