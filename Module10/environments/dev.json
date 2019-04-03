@@ -1,0 +1,13 @@
+{
+    "name": "dev",
+    "description": "This is a dev environment defined as JSON",
+    "chef_type": "environment",
+    "json_class": "Chef::Environment",
+    "default_attributes": {
+    },
+    "override_attributes": {
+    },
+    "cookbook_versions": {
+        "docker_run_book": "= 0.0.32"
+    }
+}
