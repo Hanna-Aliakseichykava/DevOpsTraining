@@ -5,13 +5,6 @@ pipeline {
         label ""
     }
 
-   environment {
-     
-     APP_URL_1 = "http://${NODE_NAME}:8080/app/"
-
-     APP_URL_2 = "http://${NODE_NAME}:8081/app/"
-   }
-
     stages {
 
         stage('Clone sources') {
@@ -53,9 +46,9 @@ pipeline {
 
 
                     echo '..........................Update dev environament with new version..........................'
-                    File envFile = "${env.WORKSPACE}/Module10/environments/dev.json"
+                    File envFile = new File("${env.WORKSPACE}/Module10/environments/dev.json")
 
-                    def lines = envFile.readLines()
+                    lines = envFile.readLines()
 
                     envFile.write lines[0] + "\n"
                     for (int i = 1; i < lines.size(); i++) {
@@ -65,7 +58,7 @@ pipeline {
                             line = "        \"docker_run_book\": \"= ${VERSION}\""
                         }
 
-                        metadataFile << line + "\n"
+                        envFile << line + "\n"
                     }
 
                     println envFile.text
@@ -96,8 +89,11 @@ pipeline {
                 script {
 
                     echo '..........................Upload updated cookbook to chef server..........................'
-                    sh "sudo cd /root/chef-repo/cookbooks/docker_run_book && sudo berks install && berks upload"
-                    sh "sudo knife cookbook list -c /root/chef-repo/.chef/knife.rb"
+
+                    dir ("/root/chef-repo/cookbooks/docker_run_book") {
+                        sh "sudo berks install && sudo berks upload"
+                        sh "sudo knife cookbook list -c /root/chef-repo/.chef/knife.rb"
+                    }
 
                     echo '..........................Upload updated environment file to chef server..........................'
                     sh "sudo knife environment from file /root/chef-repo/environments/dev.json -c /root/chef-repo/.chef/knife.rb"
@@ -113,23 +109,6 @@ pipeline {
                         echo '..........................Start Client........................'
                         sh "sudo knife node run_list add ${NODE_NAME} \"recipe[docker_run_book]\" -c /root/chef-repo/.chef/knife.rb"
                         sh "sudo knife ssh 'name:${NODE_NAME}' 'sudo chef-client --once -o docker_run_book' -x vagrant -P 'vagrant' -c /root/chef-repo/.chef/knife.rb"
-
-
-                        def versionCheckResultPort1 = sh (
-                            script: "curl -X GET ${APP_URL_1} | grep ${VERSION} &>/dev/null && echo true || echo false",
-                            returnStdout: true
-                        ).trim()
-                        println "Version Check - Port 1: [${versionCheckResultPort1}]"
-
-                        def versionChekResultPort2 = sh (
-                            script: "curl -X GET ${APP_URL_2} | grep ${VERSION} &>/dev/null && echo true || echo false",
-                            returnStdout: true
-                        ).trim()
-                        println "Version Check - Port 2: [${versionChekResultPort2}]"
-
-                        if(versionCheckResultPort1 != "true" && versionChekResultPort2 != "true") {
-                            error("Build failed: version check doesn't pass")
-                        }
 
                     }
                 

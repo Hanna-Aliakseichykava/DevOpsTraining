@@ -63,7 +63,8 @@ end
 
 bash 'check_version' do
   code <<-EOH
-    (((curl -X GET http://localhost:8080/app/ || echo '') | grep "#{node['APP_VERSION']}"; [ $? -eq 0 ]) || ((curl -X GET http://localhost:8081/app/ || echo '') | grep "#{node['APP_VERSION']}"; [ $? -eq 0 ]) ) || exit 2
+     sleep 3;
+    (curl -X GET http://localhost:8080/app/ || curl -X GET http://localhost:8081/app/ || echo '') | grep "#{node['APP_VERSION']}"; [ $? -eq 0 ] || exit 2
   EOH
   action :run
 end
