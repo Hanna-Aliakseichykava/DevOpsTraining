@@ -1,0 +1,154 @@
+----------------------------------------
+
+Install Required Software
+
+----------------------------------------
+
+https://chocolatey.org/install
+
+
+Chocolatey
+
+Run as Administrator:
+@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
+
+
+MS SQL Server
+
+choco install sql-server-2017 /Q 
+
+
+
+Octopus  Server
+
+choco install octopusdeploy -y
+
+
+Octopus Tentacle
+
+choco install octopusdeploy.tentacle -y
+
+
+
+Jenkins
+
+choco install jenkins -y
+
+localhost:8080
+admin2/admin2
+
+
+Microsoft .Net Core SDK – 2.0.0 (x64)
+
+choco install dotnetcore-sdk --version 2.0.0 -y
+
+Microsoft .Net Framework
+
+choco install dotnet4.7 -y
+
+--------------------------------
+
+DOCS
+
+--------------------------------
+
+Install Octopus Server
+
+https://octopus.com/docs/installation/installing-octopus
+
+Install Octopus tentacle
+
+https://octopus.com/docs/installation/installing-tentacles
+
+Configure tentacle to listen Octopus server
+
+https://octopus.com/docs/installation/installing-tentacles/listening-tentacles
+
+
+----------------------------------------
+
+Configure Tentacle
+
+----------------------------------------
+
+Octopus Manager -> Open in Browser
+
+http://localhost:80/
+
+admin/Admin123
+
+43FAC1A3125EE0C9EB8660A223553439CA1547DA
+
+
+
+Octopus Tentacle Manager
+
+10933
+
+
+When the Tentacle Manager launches, click GET STARTED.
+
+On the communication style screen, select Listening Tentacle and click Next.
+
+In the Octopus Web Portal, navigate to the Infrastructure tab, select Deployment Targets and click ADD DEPLOYMENT TARGET ➜ WINDOWS, and select Listening Tentacle.
+
+Copy the Thumbprint (the long alphanumerical string).
+
+Back on the Tentacle server, accept the default listening port 10933 and paste the Thumbprint into the Octopus Thumbprint field and click Next.
+
+Click INSTALL, and after the installation has finished click Finish.
+
+No proxy
+
+Back in the Octopus Web Portal, enter the DNS or IP address of the machine the Tentacle is installed on, i.e., example.com or 10.0.1.23, and click NEXT:
+
+localhost
+10933
+No proxy
+
+
+Add a display name for the deployment target (the server where you just installed the Listening Tentacle).
+
+Select which environments the deployment target will be assigned to.
+
+Choose or create at least one target roles for the deployment target and click Save.
+
+
+https://localhost:10933
+
+
+----------------------------------------
+
+Build APP
+
+----------------------------------------
+
+Create DB "MusicStore":
+
+Open a command prompt and then type SqlCmd.exe and press enter, you should then get 1) which means you are connected.
+
+Once connected execute
+
+1) CREATE DATABASE MusicStore
+2) GO
+
+
+Edit DB connection string:
+\MusicStoreTest-master\samples\MusicStore\config.json
+
+Edit target framework:
+
+MusicStoreTest-master\test\MusicStore.Test\MusicStore.Test.csproj
+
+<TargetFramework>netcoreapp2.0</TargetFramework>
+
+From project root
+
+dotnet publish --framework netcoreapp2.0
+
+From \MusicStoreTest-master\samples\MusicStore\bin\Debug\netcoreapp2.0\publish
+
+dotnet MusicStore.dll
+
+
+http://localhost:5000
