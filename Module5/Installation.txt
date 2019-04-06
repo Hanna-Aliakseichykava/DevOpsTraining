@@ -46,6 +46,21 @@ Microsoft .Net Framework
 
 choco install dotnet4.7 -y
 
+
+Octo.exe
+
+choco install octopustools
+
+//Install IIS Managemrnt Tools
+
+//https://docs.microsoft.com/en-us/iis/manage/scripting/managing-applications-and-application-pools-on-iis-with-wmi
+
+
+//https://www.blackbaud.com/files/support/infinityinstaller/content/installermaster/tkaddiismanagementscriptsandtoolsroleservice.htm
+
+//https://docs.microsoft.com/en-us/previous-versions/dynamicsnav-2016/hh167503(v=nav.90)#installing-iis-features-on-windows-8-and-windows-10
+
+choco install nuget.commandline
 --------------------------------
 
 DOCS
@@ -142,6 +157,9 @@ MusicStoreTest-master\test\MusicStore.Test\MusicStore.Test.csproj
 
 <TargetFramework>netcoreapp2.0</TargetFramework>
 
+
+Run locally:
+
 From project root
 
 dotnet publish --framework netcoreapp2.0
@@ -152,3 +170,64 @@ dotnet MusicStore.dll
 
 
 http://localhost:5000
+
+
+
+Create Release:
+
+Create API key:
+
+https://octopus.com/docs/api-and-integration/api/how-to-create-an-api-key
+
+User -> Profile -> My API keys
+
+
+
+https://octopus.com/docs/deployment-process
+
+
+From project root
+-----
+Create NuGet package
+
+
+---dotnet publish --output ./dist --framework netcoreapp2.0
+octo pack ./dist --id="MusicStore" --version="0.0.0"
+
+octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
+
+octo create-release --project MusicStore --server http://localhost/ --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
+
+dotnet publish --output ./dist --framework netcoreapp2.0
+octo pack ./dist --id="MusicStore" --version="0.0.0"
+
+octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
+
+octo create-release --project MusicStore --server http://localhost/ --apiKey=API-VLNMFTBNKI0DV1VY8MONKIAHG84
+
+
+nuget install music.store.0.0.1.nupkg
+
+nuget add Product.Package.1.0.0.nupkg -source local/
+nuget list -Source local outputs Product.Package 1.0.0 as expected
+ls local/ outputs product.package/
+a. nuget install Product.Package => > Unable to find package Product.Package
+b. nuget install product.package =>
+
+
+---------------------------------------------------
+
+-----------------
+
+1) Install SSH Pipeline Steps plugin
+
+2) Install Credentials Binding Plugin (or just verify that it is already installed)
+
+Create credentials with the following ids:
+
+Jenkins -> Credentials -> System -> Global credentials (unrestricted) -> Add Credentials:
+
+gitcreds
+
+
+3) If groovy script is used instead of Jenkinsfile, uncheck "run in groovy sandbox" checkbox in Job configuration;

@@ -7,3 +7,7 @@ build
 /Module8/v2-log-collectioning/.vagrant
 /Module9/.vagrant
 /Module10/.vagrant
+/Module5/MusicStoreTest-master/*.nupkg
+/Module5/MusicStoreTest-master/samples/MusicStore/dist
+/Module5/MusicStoreTest-master/test/MusicStore.E2ETests/dist
+/Module5/MusicStoreTest-master/test/MusicStore.Test/dist
