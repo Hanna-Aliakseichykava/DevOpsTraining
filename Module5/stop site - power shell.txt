@@ -1,0 +1,3 @@
+$appCmd = "C:\windows\system32\inetsrv\appcmd.exe"
+
+& $appCmd stop site MusicStore

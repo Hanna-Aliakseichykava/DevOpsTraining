@@ -192,44 +192,18 @@ Create NuGet package
 
 From project root
 
-dotnet publish --output ./dist --framework netcoreapp2.0
+dotnet publish --framework netcoreapp2.0
 
-octo pack ./dist --id="MusicStore" --version="0.0.0"
+octo pack --id="musicstore" --version="0.0.16"
 
-octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
+octo push --package musicstore.0.0.16.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
 
-octo create-release --project MusicStore --server http://localhost/ --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
-
------
-
-From project root
-
-dotnet publish --output dist --framework netcoreapp2.0
-
-octo pack ./dist --id="MusicStore" --version="0.0.0"
-
-octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
-
-octo create-release --project MusicStore --server http://localhost/ --apiKey=API-VLNMFTBNKI0DV1VY8MONKIAHG84
-------
-
-nuget install music.store.0.0.1.nupkg
-
-nuget add Product.Package.1.0.0.nupkg -source local/
-nuget list -Source local outputs Product.Package 1.0.0 as expected
-ls local/ outputs product.package/
-a. nuget install Product.Package => > Unable to find package Product.Package
-b. nuget install product.package =>
+octo create-release --project MusicStore --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
 
 
-bat "dotnet publish --output dist --framework netcoreapp2.0"
-bat "octo pack dist --id=\"musicstore\" --version=\"${VERSION}\""
-bat "octo push --package musicstore.${VERSION}.nupkg --replace-existing --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
-bat "octo create-release --project MusicStore --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
 
 ---------------------------------------------------
 
------------------
 
 Jenkins
 
@@ -281,4 +255,12 @@ Start Run As and enter AppWiz.cpl
 
 Включение или отключение компонентов windows
 
-You should see the Internet Information Services feature:
+Internet Information Services feature.
+
+
+
+
+Test Powershell script:
+
+
+Windows PowerShell ISE, right-click the top result, and select the Run as administrator
