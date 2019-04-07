@@ -186,25 +186,32 @@ User -> Profile -> My API keys
 https://octopus.com/docs/deployment-process
 
 
-From project root
+
 -----
 Create NuGet package
 
+From project root
 
----dotnet publish --output ./dist --framework netcoreapp2.0
+dotnet publish --output ./dist --framework netcoreapp2.0
+
 octo pack ./dist --id="MusicStore" --version="0.0.0"
 
 octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
 
 octo create-release --project MusicStore --server http://localhost/ --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
 
-dotnet publish --output ./dist --framework netcoreapp2.0
+-----
+
+From project root
+
+dotnet publish --output dist --framework netcoreapp2.0
+
 octo pack ./dist --id="MusicStore" --version="0.0.0"
 
 octo push --package MusicStore.0.0.0.nupkg --replace-existing --server http://localhost --apiKey API-VLNMFTBNKI0DV1VY8MONKIAHG84
 
 octo create-release --project MusicStore --server http://localhost/ --apiKey=API-VLNMFTBNKI0DV1VY8MONKIAHG84
-
+------
 
 nuget install music.store.0.0.1.nupkg
 
@@ -215,9 +222,17 @@ a. nuget install Product.Package => > Unable to find package Product.Package
 b. nuget install product.package =>
 
 
+bat "dotnet publish --output dist --framework netcoreapp2.0"
+bat "octo pack dist --id=\"musicstore\" --version=\"${VERSION}\""
+bat "octo push --package musicstore.${VERSION}.nupkg --replace-existing --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
+bat "octo create-release --project MusicStore --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
+
 ---------------------------------------------------
 
 -----------------
+
+Jenkins
+
 
 1) Install SSH Pipeline Steps plugin
 
@@ -231,3 +246,39 @@ gitcreds
 
 
 3) If groovy script is used instead of Jenkinsfile, uncheck "run in groovy sandbox" checkbox in Job configuration;
+
+4) Change Workspase directory (without spaces and cyrrillic symbols):
+
+Shutdown Jenkins
+
+C:\Program Files (x86)\Jenkins\config.xml
+
+<workspaceDir>D:/INST/JENKINS/WORKSPACE/${ITEM_FULL_NAME}</workspaceDir>
+
+
+
+
+Export or Import Job:
+
+http://learn-automation.com/import-and-export-jobs-in-jenkins/
+
+
+
+Export job
+
+
+java -jar jenkins-cli.jar -s http://localhost:8080 -auth admin2:admin2 get-job Task5 > Task5.xml
+
+Import Job
+
+java -jar jenkins-cli.jar -s http://localhost:8080 -auth admin2:admin2 create-job newTask5 < Task5.xml
+
+----------------------
+
+IIS
+
+Start Run As and enter AppWiz.cpl
+
+Включение или отключение компонентов windows
+
+You should see the Internet Information Services feature:
