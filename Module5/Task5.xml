@@ -50,7 +50,7 @@ pipeline {
 
    environment {
      VERSION = &apos;0.0.0&apos;
-     
+
      OCTOPUS_SERVER_URL = &quot;http://localhost&quot;
 
      API_KEY = &quot;API-VLNMFTBNKI0DV1VY8MONKIAHG84&quot;
@@ -83,8 +83,8 @@ pipeline {
                     
                     echo &apos;..........................Create Release..........................&apos;
                     dir (&quot;Module5/MusicStoreTest-master&quot;) {
-                        bat &quot;dotnet publish --output dist --framework netcoreapp2.0&quot;
-                        bat &quot;octo pack dist --id=\&quot;musicstore\&quot; --version=\&quot;${VERSION}\&quot;&quot;
+                        bat &quot;dotnet publish --framework netcoreapp2.0&quot;
+                        bat &quot;octo pack --id=\&quot;musicstore\&quot; --version=\&quot;${VERSION}\&quot;&quot;
                         bat &quot;octo push --package musicstore.${VERSION}.nupkg --replace-existing --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}&quot;
                         bat &quot;octo create-release --project MusicStore --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}&quot;
                     }

@@ -1,0 +1,20 @@
+
+$StatusCode = (invoke-webrequest -uri "http://localhost:5000" -UseBasicParsing -TimeoutSec 20).statuscode
+ 
+ if($StatusCode -ne "200")
+
+ {
+
+ write-host("Code: " + $StatusCode)
+ 
+ Exit 1
+
+ }
+
+ else{
+
+ write-host("Code: " + $StatusCode)
+ 
+ Exit 0
+
+ }

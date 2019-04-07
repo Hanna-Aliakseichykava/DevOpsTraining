@@ -68,8 +68,8 @@ pipeline {
                     
                     echo '..........................Create Release..........................'
                     dir ("Module5/MusicStoreTest-master") {
-                        bat "dotnet publish --output dist --framework netcoreapp2.0"
-                        bat "octo pack dist --id=\"musicstore\" --version=\"${VERSION}\""
+                        bat "dotnet publish --framework netcoreapp2.0"
+                        bat "octo pack --id=\"musicstore\" --version=\"${VERSION}\""
                         bat "octo push --package musicstore.${VERSION}.nupkg --replace-existing --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
                         bat "octo create-release --project MusicStore --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
                     }
