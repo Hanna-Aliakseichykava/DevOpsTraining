@@ -1,0 +1,110 @@
+
+def incrementVersion() {
+    
+    def basePath = "${env.WORKSPACE}/Module5"
+    File propsFile = new File("${basePath}/version.properties")
+    Properties props = new Properties()
+    props.load(propsFile.newDataInputStream())
+
+    String version = props.getProperty('version')
+    println "Old version: " + version
+
+    version = incrementMinorVersion(version)
+    println "New version: " + version
+
+    props.setProperty('version', version)
+    props.store(propsFile.newWriter(), null)
+
+    return version               
+}
+
+def incrementMinorVersion(version) {
+
+    String minorVersion = version.substring(version.lastIndexOf('.') + 1) //get last part of the version
+    int minor = minorVersion.toInteger() + 1
+    String newVersion = version.substring(0, version.lastIndexOf('.')) + '.' + minor
+    return newVersion
+}
+
+
+pipeline {
+
+    agent {
+        label ""
+    }
+
+   environment {
+     VERSION = '0.0.0'
+
+     OCTOPUS_SERVER_URL = "http://localhost"
+
+     API_KEY = "API-VLNMFTBNKI0DV1VY8MONKIAHG84"
+   }
+
+    stages {
+
+        stage('Clone sources') {
+            steps {
+                echo '..........................Clone or pull the repo..........................'
+                git url: 'https://github.com/Hanna-Aliakseichykava/DevOpsTraining.git', branch: 'Module5'
+            }
+        }
+
+        stage('Increment version') {
+            steps {
+                echo '..........................Increment Version..........................'
+
+                script {
+
+                    VERSION = incrementVersion()
+                }
+
+            }
+        }
+
+         stage('Create Release') {
+            steps {
+                script {
+                    
+                    echo '..........................Create Release..........................'
+                    dir ("Module5/MusicStoreTest-master") {
+                        bat "dotnet publish --output dist --framework netcoreapp2.0"
+                        bat "octo pack dist --id=\"musicstore\" --version=\"${VERSION}\""
+                        bat "octo push --package musicstore.${VERSION}.nupkg --replace-existing --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
+                        bat "octo create-release --project MusicStore --server ${OCTOPUS_SERVER_URL} --apiKey ${API_KEY}"
+                    }
+                }  
+                
+            }
+        }
+        
+
+        stage('Push to the repo') {
+            steps {
+                script {
+                    
+                    bat "git config --global user.email \"aleks.anna.ur@gmail.com\""
+                    bat "git config --global user.name \"Anna\""
+  
+                    bat "git checkout Module5"
+                    bat "git commit -am \"Version is updated to ${VERSION}\""
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          bat("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining Module5")
+                    } 
+
+                    bat "git checkout master"
+                    bat "git pull"
+                    bat 'git merge Module5'
+
+                    withCredentials([usernamePassword(credentialsId: 'gitcreds', usernameVariable: 'username', passwordVariable: 'password')]){
+                          bat("git push http://$username:$password@github.com/Hanna-Aliakseichykava/DevOpsTraining master")
+                    }  
+                }  
+                
+            }
+        }
+
+
+    }
+}
