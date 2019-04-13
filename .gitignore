@@ -8,3 +8,8 @@ build
 /Module10/.vagrant
 /Additional/Module8/.vagrant
 /Module9/.vagrant
+/Module11/terraform/terraform.tfstate
+/Module11/terraform/terraform.tfstate.backup
+/Module11/terraform/my_key_file
+/Module11/terraform/MyPlan.txt
+/Module11/terraform/.terraform
