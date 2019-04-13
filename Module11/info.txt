@@ -1,0 +1,70 @@
+Install Terraform by unzipping it and moving it to a directory included in your system's PATH .
+ 
+ 
++ LC (launch configuration) with ami
+
++ ASG (autoscaling group) with healthcheck type ELB
+
++ ALB (application load balancer) with target group
+
++ SG (security groups), access to the application should be only from ALB
+
+Output from task: Commit terraform configuration into task11 branch and send link by email to your github repo
+ 
+ 
+---------------
+Setting Up with Amazon EC2
+https://docs.aws.amazon.com/en_us/AWSEC2/latest/UserGuide/get-set-up-for-amazon-ec2.html
+ 
+ 
+https://docs.aws.amazon.com/en_us/AWSEC2/latest/UserGuide/EC2_GetStarted.html
+ 
+Security Groups
+https://docs.aws.amazon.com/en_us/AmazonRDS/latest/UserGuide/CHAP_Tutorials.WebServerDB.CreateVPC.html
+ 
+
+Web Server
+https://docs.aws.amazon.com/en_us/AmazonRDS/latest/UserGuide/CHAP_Tutorials.WebServerDB.CreateWebServer.html
+ 
+ 
+----------------------
+ 
+AWS CLI
+ 
+https://blog.gruntwork.io/authenticating-to-aws-with-the-credentials-file-d16c0fbcbf9e
+ 
+https://docs.aws.amazon.com/en_us/cli/latest/userguide/cli-chap-install.html
+ 
+ 
+ 
+Install CLI
+https://docs.aws.amazon.com/en_us/cli/latest/userguide/install-windows.html
+ 
+ 
+----------------------
+  
+Full tutorial - Load Balancer
+https://www.hiveit.co.uk/labs/terraform-aws-vpc-example
+ 
+ 
+aws --version
+ 
+aws configure
+
+
+from \DevOpsTraining\Module11\terraform
+
+the first time using terraform or when dependencies are updated:
+terraform init
+
+
+terraform plan -var-file="user.tfvars"
+terraform plan -var-file="user.tfvars" -out MyPlan.txt
+
+terraform apply -var-file="user.tfvars"
+
+
+----
+
+
+terraform destroy
